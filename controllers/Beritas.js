@@ -149,16 +149,6 @@ export const createBerita = async (req, res) => {
 };
 
 export const updateBerita = async (req, res) => {
-    if (req.status !== "verified") {
-        return res.status(403).json({
-            msg: "Akun belum diverifikasi"
-        });
-    }
-    if (req.role !== "admin" && req.role!== "humas") {
-        return res.status(403).json({
-            msg: "Akses terlarang!"
-        });
-    }
     try {
         const berita = await Beritas.findOne({
             where: {
@@ -168,10 +158,6 @@ export const updateBerita = async (req, res) => {
 
         if (!berita) {
             return res.status(404).json({ msg: "Berita tidak ditemukan" });
-        }
-
-        if (req.role !== "admin" && berita.users_uuid !== req.userUuid) {
-            return res.status(403).json({ msg: "Akses terlarang!" });
         }
 
         if (berita.status === "verified") {
@@ -241,10 +227,6 @@ export const deleteBerita = async (req, res) => {
             return res.status(404).json({ msg: "Berita tidak ditemukan" });
         }
 
-        if (req.role !== "admin" && berita.users_uuid !== req.userUuid) {
-            return res.status(403).json({ msg: "Akses terlarang!" });
-        }
-
         const filepath = `./storage/berita/${berita.image}`;
         if (fs.existsSync(filepath)) {
             fs.unlinkSync(filepath);
@@ -264,11 +246,6 @@ export const deleteBerita = async (req, res) => {
 };
 
 export const verifyBeritaByAdmin = async (req, res) => {
-    if (req.role !== "admin") {
-        return res.status(403).json({
-            msg: "Akses terlarang!"
-        });
-    }
     try {
         const berita = await Beritas.findOne({
             where: {

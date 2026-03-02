@@ -13,7 +13,8 @@ import {
     optionalVerifyUser,
     adminOrHumas,
     onlyVerified,
-    adminOnly
+    adminOnly,
+    adminOrSelf
  } from "../middleware/AuthUser.js";
 
 const router = express.Router();
@@ -24,9 +25,9 @@ router.get("/agendas/:uuid", optionalVerifyUser, getAgendaByUuid);
 
 router.post("/agendas", verifyUser, adminOrHumas, onlyVerified, createAgenda);
 
-router.patch("/agendas/:uuid", verifyUser, adminOrHumas, onlyVerified, updateAgenda);
+router.patch("/agendas/:uuid", verifyUser, adminOrHumas, onlyVerified,adminOrSelf, updateAgenda);
 
-router.delete("/agendas/:uuid", verifyUser, adminOrHumas, onlyVerified, deleteAgenda);
+router.delete("/agendas/:uuid", verifyUser, adminOrHumas, onlyVerified, adminOrSelf, deleteAgenda);
 
 router.patch("/agendas/:uuid/verify", verifyUser, adminOnly, onlyVerified, verifyAgendaByAdmin);
 

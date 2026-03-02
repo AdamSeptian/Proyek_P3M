@@ -13,18 +13,15 @@ export const getUsers = async (req, res) => {
 
     if (req.userUuid) {
       if (req.role === "admin") {
-        whereCondition = {}; // Admin lihat semua
+        whereCondition = {};
       } else {
         whereCondition = {
           [Op.or]: [
             { status: "verified" },
-            { users_uuid: req.userUuid } // User lihat milik sendiri & yang verified
+            { users_uuid: req.userUuid }
           ]
         };
       }
-    } else {
-      // Jika PENGUNJUNG UMUM (tidak login)
-      whereCondition = { status: "verified" };
     }
 
     const users = await Users.findAll({
@@ -85,66 +82,134 @@ export const getUserById = async (req, res) => {
 
 
 export const register = async (req, res) => {
-    const { username, email, password, nama_lengkap, gelar, jabatan, masa_jabat, instansi, linkedin, google_scholar, scopus, sinta } = req.body || {};
+  const {
+    username,
+    email,
+    password,
+    role,
+    nama_lengkap,
+    gelar,
+    jabatan,
+    masa_jabat,
+    instansi,
+    linkedin,
+    google_scholar,
+    scopus,
+    sinta,
+  } = req.body || {};
 
-    if (!req.files || !req.files.file) return res.status(400).json({ msg: "Mohon unggah foto profil" });
-    if (!username || username === "") return res.status(422).json({ msg: "Username wajib diisi" });
-    if (!email || email === "") return res.status(422).json({ msg: "Email wajib diisi" });
-    if (!password) {
-        return res.status(422).json({ msg: "Password wajib diisi" });
-    } else if (password.length < 6) {
-        return res.status(422).json({ msg: "Password minimal 6 karakter" });
+  try {
+
+    if (req.session.userUuid && req.session.role !== "admin") {
+      return res.status(400).json({
+        msg: "Anda masih login. Silakan logout terlebih dahulu sebelum registrasi akun baru.",
+      });
     }
-    if (!nama_lengkap || nama_lengkap === "") return res.status(422).json({ msg: "Nama lengkap wajib diisi" });
-    if (!gelar || gelar === "") return res.status(422).json({ msg: "Gelar wajib diisi" });
-    if (!jabatan || jabatan === "") return res.status(422).json({ msg: "Jabatan wajib diisi" });
-    if (!masa_jabat || masa_jabat === "") return res.status(422).json({ msg: "Masa jabatan wajib diisi" });
-    if (!instansi || instansi === "") return res.status(422).json({ msg: "Instansi wajib diisi" });
 
-    const file = req.files.file;
-    const ext = path.extname(file.name).toLowerCase();
-    const allowedType = [".png", ".jpg", ".jpeg"];
-    if (!allowedType.includes(ext)) return res.status(422).json({ msg: "Format harus JPG, PNG, JPEG" });
-    if (file.data.length > 5000000) return res.status(422).json({ msg: "Ukuran foto maksimal 5 MB" });
+    if (!username || username === "")
+      return res.status(422).json({ msg: "Username wajib diisi" });
 
-    try {
-        const hashPassword = await argon2.hash(password);
+    if (!email || email === "")
+      return res.status(422).json({ msg: "Email wajib diisi" });
 
-        const newUser = await Users.create({
-            username,
-            email,
-            password: hashPassword,
-            role: "anggota",
-            status: "pending",
-        });
+    if (!password)
+      return res.status(422).json({ msg: "Password wajib diisi" });
 
-        const fileName = file.md5 + "-" + Date.now() + ext;
-        const uploadPath = `./storage/anggota/${fileName}`;
-        if (!fs.existsSync("./storage/anggota")) {
-            fs.mkdirSync("./storage/anggota", { recursive: true });
-        }
+    if (password.length < 6)
+      return res.status(422).json({ msg: "Password minimal 6 karakter" });
 
-        await file.mv(uploadPath);
-        const url = `${req.protocol}://${req.get("host")}/storage/anggota/${fileName}`;
-        await Anggotas.create({
-            users_uuid: newUser.uuid, 
-            nama_lengkap,
-            gelar,
-            jabatan,
-            masa_jabat,
-            instansi,
-            linkedin,
-            google_scholar,
-            scopus,
-            sinta,
-            image: fileName,
-            url: url
-        });
+    const existingEmail = await Users.findOne({
+      where: { email: email },
+    });
 
-        res.status(201).json({ msg: "Registrasi berhasil! Akun Anda sedang menunggu verifikasi admin." });
-    } catch (error) {
-        res.status(500).json({ msg: error.message });
+    if (existingEmail) {
+      return res.status(400).json({
+        msg: "Email sudah terdaftar. Gunakan email lain.",
+      });
     }
+    const isAdmin = req.session.userUuid && req.session.role === "admin";
+
+    if (!isAdmin) {
+
+      if (!req.files || !req.files.file)
+        return res.status(400).json({ msg: "Mohon unggah foto profil" });
+
+      if (!nama_lengkap || nama_lengkap === "")
+        return res.status(422).json({ msg: "Nama lengkap wajib diisi" });
+
+      if (!gelar || gelar === "")
+        return res.status(422).json({ msg: "Gelar wajib diisi" });
+
+      if (!jabatan || jabatan === "")
+        return res.status(422).json({ msg: "Jabatan wajib diisi" });
+
+      if (!masa_jabat || masa_jabat === "")
+        return res.status(422).json({ msg: "Masa jabatan wajib diisi" });
+
+      if (!instansi || instansi === "")
+        return res.status(422).json({ msg: "Instansi wajib diisi" });
+
+    }
+
+    const hashPassword = await argon2.hash(password);
+
+    const newUser = await Users.create({
+      username,
+      email,
+      password: hashPassword,
+      role: isAdmin ? role : "anggota",
+      status: isAdmin ? "verified" : "pending",
+    });
+
+    if (!isAdmin) {
+
+      const file = req.files.file;
+      const ext = path.extname(file.name).toLowerCase();
+
+      const allowedType = [".png", ".jpg", ".jpeg"];
+      if (!allowedType.includes(ext))
+        return res.status(422).json({ msg: "Format harus JPG, PNG, JPEG" });
+
+      if (file.data.length > 5000000)
+        return res.status(422).json({ msg: "Ukuran foto maksimal 5 MB" });
+
+      const fileName = file.md5 + "-" + Date.now() + ext;
+
+      const uploadDir = "./storage/anggota";
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const uploadPath = `${uploadDir}/${fileName}`;
+      await file.mv(uploadPath);
+
+      const url = `${req.protocol}://${req.get("host")}/storage/anggota/${fileName}`;
+
+      await Anggotas.create({
+        users_uuid: newUser.uuid,
+        nama_lengkap,
+        gelar,
+        jabatan,
+        masa_jabat,
+        instansi,
+        linkedin,
+        google_scholar,
+        scopus,
+        sinta,
+        image: fileName,
+        url: url,
+      });
+    }
+
+    res.status(201).json({
+      msg: isAdmin
+        ? "User berhasil dibuat oleh admin"
+        : "Registrasi berhasil! Akun Anda sedang menunggu verifikasi admin.",
+    });
+
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
 };
 
 export const updateUsers = async (req, res) => {

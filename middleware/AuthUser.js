@@ -78,3 +78,10 @@ export const adminOrAnggota = (req, res, next) => {
   }
   next();
 };
+
+export const adminOrSelf = (req, res, next) => {
+  if (req.role !== "admin" && agenda.users_uuid !== req.userUuid) {
+    return res.status(403).json({ msg: "Akses terlarang!" });
+  }
+  next();
+};
