@@ -73,11 +73,6 @@ export const getBeritaById = async (req, res) => {
 };
 
 export const createBerita = async (req, res) => {
-  if (req.status !== "verified") {
-    return res.status(403).json({
-      msg: "Akun belum diverifikasi"
-    });
-  }
   const { judul_berita, isi_berita } = req.body || {};
 
   if (req.files === null)
@@ -181,13 +176,10 @@ export const updateBerita = async (req, res) => {
               return res.status(422).json({ msg: "Image harus kurang dari 5 MB" });
           }
 
-          // ✅ Generate nama unik
           fileName = file.md5 + "_" + Date.now() + ext;
 
-          // ✅ Upload dulu
           await file.mv(`./storage/berita/${fileName}`);
 
-          // ✅ Baru hapus yang lama (dan hanya kalau namanya beda)
           const oldPath = `./storage/berita/${berita.image}`;
           if (berita.image !== fileName && fs.existsSync(oldPath)) {
               fs.unlinkSync(oldPath);

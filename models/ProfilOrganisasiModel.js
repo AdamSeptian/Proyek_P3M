@@ -28,14 +28,14 @@ const ProfilOrganisasi = db.define(
         notEmpty: true,
       },
     },
-    judul_berita: {
+    nama_organisasi: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
             notEmpty: true,
         },
     },
-    isi_berita: {
+    deskripsi_organisasi: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
