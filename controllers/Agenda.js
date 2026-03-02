@@ -2,6 +2,7 @@ import Agendas from "../models/AgendaModel.js";
 import Users from "../models/UserModel.js";
 import path from "path";
 import fs from "fs";
+import { Op } from "sequelize";
 
 export const getAgendas = async (req, res) => {
     try {
@@ -164,10 +165,6 @@ export const updateAgenda = async (req, res) => {
             return res.status(404).json({ msg: "Agenda tidak ditemukan" });
         }
 
-        if (req.role !== "admin" && agenda.users_uuid !== req.userUuid) {
-            return res.status(403).json({ msg: "Akses terlarang!" });
-        }
-
         if (agenda.status === "verified") {
             return res.status(400).json({
                 msg: "Agenda yang sudah diverifikasi tidak dapat diubah"
@@ -212,7 +209,7 @@ export const updateAgenda = async (req, res) => {
             },
         });
 
-        res.status(200).json({ msg: "Berita berhasil diupdate" });
+        res.status(200).json({ msg: "Agenda berhasil diupdate" });
 
     } catch (error) {
         res.status(500).json({ msg: error.message });
@@ -231,10 +228,6 @@ export const deleteAgenda = async (req, res) => {
             return res.status(404).json({ msg: "Agenda tidak ditemukan" });
         }
 
-        if (req.role !== "admin" && agenda.users_uuid !== req.userUuid) {
-            return res.status(403).json({ msg: "Akses terlarang!" });
-        }
-
         const filepath = `./storage/agenda/${agenda.file}`;
         if (fs.existsSync(filepath)) {
             fs.unlinkSync(filepath);
@@ -246,7 +239,7 @@ export const deleteAgenda = async (req, res) => {
             },
         });
 
-        res.status(200).json({ msg: "Berita berhasil dihapus" });
+        res.status(200).json({ msg: "Agenda berhasil dihapus" });
 
     } catch (error) {
         res.status(500).json({ msg: error.message });

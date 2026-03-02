@@ -5,7 +5,7 @@ import session from "express-session";
 import SequelizeStore from "connect-session-sequelize";
 import FileUpload from "express-fileupload";
 import db from "./config/database.js";
-import UserRoute from "./routes/Userroute.js";
+import UserRoute from "./routes/UserRoute.js";
 import BeritaRoute from "./routes/BeritaRoute.js";
 import AuthRoute from "./routes/AuthRoute.js";
 import AnggotaRoute from "./routes/AnggotaRoute.js";

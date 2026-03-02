@@ -13,7 +13,8 @@ import {
     optionalVerifyUser,
     adminOnly,
     adminOrHumas,
-    onlyVerified
+    onlyVerified,
+    adminOrSelf
  } from "../middleware/AuthUser.js";
 
 const router = express.Router();
@@ -24,9 +25,9 @@ router.get("/beritas/:uuid",optionalVerifyUser, getBeritaById);
 
 router.post("/beritas", verifyUser, adminOrHumas, onlyVerified, createBerita);
 
-router.patch("/beritas/:uuid", verifyUser, adminOrHumas, onlyVerified, updateBerita);
+router.patch("/beritas/:uuid", verifyUser, adminOrHumas, onlyVerified, adminOrSelf, updateBerita);
 
-router.delete("/beritas/:uuid", verifyUser,adminOrHumas, onlyVerified, deleteBerita);
+router.delete("/beritas/:uuid", verifyUser,adminOrHumas, onlyVerified, adminOrSelf, deleteBerita);
 
 router.patch("/beritas/:uuid/verify", verifyUser, adminOnly, onlyVerified, verifyBeritaByAdmin);
 

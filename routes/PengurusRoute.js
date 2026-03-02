@@ -8,19 +8,19 @@ import {
 } from "../controllers/Pengurus.js";
 import {
     verifyUser,
-    adminOrKetuaForum
+    adminOnly
 } from "../middleware/AuthUser.js";
 
 const router = express.Router();
 
-router.get("/penguruses", getPenguruses);
+router.get("/pengurus", getPenguruses);
 
-router.get("/penguruses/:uuid", getPengurusByUuid);
+router.get("/pengurus/:uuid", getPengurusByUuid);
 
-router.post("/penguruses", verifyUser, adminOrKetuaForum, createPengurus);
+router.post("/pengurus", verifyUser, adminOnly, createPengurus);
 
-router.patch("/penguruses/:uuid", verifyUser, adminOrKetuaForum, updatePengurus);
+router.patch("/pengurus/:uuid", verifyUser, adminOnly, updatePengurus);
 
-router.delete("/penguruses/:uuid", verifyUser, adminOrKetuaForum, deletePengurus);
+router.delete("/pengurus/:uuid", verifyUser, adminOnly, deletePengurus);
 
 export default router;

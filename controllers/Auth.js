@@ -4,6 +4,12 @@ import argon2 from "argon2";
 
 export const Login = async (req, res) => {
   try {
+    if (req.session.userUuid) {
+      return res.status(400).json({
+        msg: "Anda masih login. Silakan logout terlebih dahulu sebelum login ke akun lain."
+      });
+    }
+
     const user = await Users.findOne({
       where: {
         email: req.body.email,
@@ -37,7 +43,6 @@ export const Login = async (req, res) => {
     if (!match)
       return res.status(400).json({ msg: "Password salah!" });
 
-    // simpan session
     req.session.userUuid = user.uuid;
     req.session.role = user.role;
     req.session.status = user.status;
@@ -49,7 +54,9 @@ export const Login = async (req, res) => {
       email: user.email,
       role: user.role,
       status: user.status,
-      ...(user.anggotas && user.anggotas.length > 0 && { anggota: user.anggotas })
+      ...(user.anggotas && user.anggotas.length > 0 && {
+        anggota: user.anggotas,
+      }),
     });
 
   } catch (error) {
@@ -101,8 +108,11 @@ export const Me = async (req, res) => {
 
 export const Logout = (req, res) => {
   req.session.destroy((err) => {
-    if (err)
+    if (err) {
       return res.status(400).json({ msg: "Tidak dapat logout" });
+    } else if (!req.session) {
+      return res.status(400).json({ msg: "Anda sudah logout" });
+    }
 
     res.status(200).json({ msg: "Anda telah logout" });
   });
