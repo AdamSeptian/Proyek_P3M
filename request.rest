@@ -1,0 +1,73 @@
+//login admin
+POST http://localhost:5000/login
+Content-Type: application/json
+
+{
+    "email": "admin@mail.com",
+    "password": "admin123"
+}
+
+###
+//login anggota verified
+POST http://localhost:5000/login
+Content-Type: application/json
+
+{
+    "email": "anggota1@gmail.com",
+    "password": "password123"
+}
+
+###
+//login anggota pending
+POST http://localhost:5000/login
+Content-Type: application/json
+
+{
+    "email": "humas1@gmail.com",
+    "password": "password123"
+}
+
+###
+//me
+GET http://localhost:5000/me
+
+###
+//logout
+DELETE http://localhost:5000/logout
+
+###
+//Create User
+POST http://localhost:5000/users
+Content-Type: application/json
+
+{
+    "username": "Jhon",
+    "email": "jhon@gmail.com",
+    "password": "password123",
+    "confPassword": "password123"
+}
+###
+//delete user
+DELETE http://localhost:5000/users/8059e9fb-7e05-436e-bf07-9b1a72049bd7
+
+###
+//getAllUser
+GET http://localhost:5000/users
+
+###
+//getAllAnggota
+GET http://localhost:5000/anggotas
+
+###
+//getallberita
+GET http://localhost:5000/beritas
+
+###
+//create berita
+POST http://localhost:5000/beritas
+Content-Type: application/json
+
+{
+    "judul_berita": "Berita Baru",
+    "isi_berita": "Ini adalah isi berita baru yang dibuat oleh admin."
+}
