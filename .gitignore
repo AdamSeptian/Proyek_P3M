@@ -20,8 +20,12 @@ pids/
 *.pid.lock
 
 # storage (upload files)
-storage/*
-!storage/.gitkeep
+# storage/*
+# !storage/.gitkeep
+
+#seeders
+seeders/
+!seeders/.gitkeep
 
 # build output (kalau ada)
 dist/
