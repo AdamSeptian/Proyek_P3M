@@ -82,3 +82,6 @@ const PORT = process.env.PORT || process.env.APP_PORT || 5000;
     console.error("Failed to connect database:", error);
   }
 })();
+// (async () => {
+//   await db.sync({alter: true});
+// })();
