@@ -3,6 +3,9 @@ import Users from "../models/UserModel.js";
 import path from "path";
 import fs from "fs";
 import { Op } from "sequelize";
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getAgendas = async (req, res) => {
     try {
@@ -23,10 +26,10 @@ export const getAgendas = async (req, res) => {
 
     const response = await Agendas.findAll({
       where: whereCondition,
-      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "status", "jadwal", "createdAt"],
+      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "file", "url", "createdAt"],
       include: [{
         model: Users,
-        attributes: ["username", "role"]
+        attributes: ["username"]
       }]
     });
 
@@ -35,6 +38,39 @@ export const getAgendas = async (req, res) => {
     res.status(500).json({ msg: error.message });
   }
 }
+
+export const getAgendaImage = async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(__dirname, "../storage/agenda", filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ msg: "Agenda Tidak Ditemukan" });
+        }
+
+        const agenda = await Agendas.findOne({
+            where: { file: filename }
+        });
+
+        if (!agenda) {
+            return res.status(404).json({ msg: "Data agenda tidak ditemukan" });
+        }
+        if (agenda.status !== "verified") {
+            const isAdmin = req.role === "admin";
+            const isOwner = req.userUuid === agenda.users_uuid;
+
+            if (!isAdmin && !isOwner) {
+                return res.status(403).json({ 
+                    msg: "Akses ditolak." 
+                });
+            }
+        }
+
+        res.sendFile(filePath);
+    } catch (error) {
+        res.status(500).json({ msg: error.message });
+    }
+};
 
 export const getAgendaByUuid = async (req, res) => {
     try {
@@ -55,10 +91,10 @@ export const getAgendaByUuid = async (req, res) => {
 
     const response = await Agendas.findOne({
       where: whereCondition,
-      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "status", "createdAt", "updatedAt"],
+      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "file", "url", "createdAt", "updatedAt"],
       include: [{
         model: Users,
-        attributes: ["username", "role"]
+        attributes: ["username"]
       }]
     });
 

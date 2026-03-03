@@ -6,7 +6,8 @@ import {
     updateLaporan,
     deleteLaporan,
     verifyLaporanByAdmin,
-    rejectLaporanByAdmin
+    rejectLaporanByAdmin,
+    getLaporanFile
 } from "../controllers/Laporan.js";
 import {
     verifyUser,
@@ -20,6 +21,8 @@ import {
 const router = express.Router();
 
 router.get("/laporans", optionalVerifyUser, getLaporans);
+
+router.get("/storage/laporan/:filename", optionalVerifyUser, getLaporanFile);
 
 router.get("/laporans/:uuid", optionalVerifyUser, getLaporanByUuid);
 

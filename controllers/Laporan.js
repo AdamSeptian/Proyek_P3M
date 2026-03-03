@@ -3,6 +3,9 @@ import Users from "../models/UserModel.js";
 import path from "path";
 import fs from "fs";
 import { Op } from "sequelize";
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getLaporans = async (req, res) => {
       try {
@@ -35,6 +38,39 @@ export const getLaporans = async (req, res) => {
          res.status(500).json({ msg: error.message });
        }
 }
+
+export const getLaporanFile = async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(__dirname, "../storage/laporan", filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ msg: "File tidak ditemukan" });
+        }
+
+        const laporan = await Laporans.findOne({
+            where: { file_laporan: filename }
+        });
+
+        if (!laporan) {
+            return res.status(404).json({ msg: "Data laporan tidak ditemukan" });
+        }
+        if (laporan.status !== "verified") {
+            const isAdmin = req.role === "admin";
+            const isOwner = req.userUuid === laporan.users_uuid;
+
+            if (!isAdmin && !isOwner) {
+                return res.status(403).json({ 
+                    msg: "Akses ditolak." 
+                });
+            }
+        }
+
+        res.sendFile(filePath);
+    } catch (error) {
+        res.status(500).json({ msg: error.message });
+    }
+};
 
 export const getLaporanByUuid = async (req, res) => {
       try {
@@ -73,7 +109,7 @@ export const getLaporanByUuid = async (req, res) => {
 }
 
 export const createLaporan = async (req, res) => {
-    const { keterangan} = req.body || {};
+    const {keterangan} = req.body || {};
 
     if (req.files === null)
         return res.status(400).json({ msg: "Tidak ada file yang diunggah!" });

@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getBeritas,
+  getBeritaImage,
   getBeritaById,
     createBerita,
     updateBerita,
@@ -14,12 +15,14 @@ import {
     adminOnly,
     adminOrHumas,
     onlyVerified,
-    adminOrSelf
+    adminOrSelf,
  } from "../middleware/AuthUser.js";
 
 const router = express.Router();
 
 router.get("/beritas", optionalVerifyUser,getBeritas);
+
+router.get("/storage/berita/:filename", optionalVerifyUser, getBeritaImage);
 
 router.get("/beritas/:uuid",optionalVerifyUser, getBeritaById);
 
