@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import session from "express-session";
 import SequelizeStore from "connect-session-sequelize";
 import FileUpload from "express-fileupload";
-import db from "./config/database.js";
+import db from "./config/Database.js";
 
 import UserRoute from "./routes/UserRoute.js";
 import BeritaRoute from "./routes/BeritaRoute.js";
@@ -35,9 +35,9 @@ app.use(
     saveUninitialized: false,
     store: store,
     cookie: {
-      secure: true,        // wajib untuk Render (HTTPS)
+      secure: process.env.NODE_ENV === "production", 
       httpOnly: true,
-      sameSite: "none",    // wajib untuk cross-domain
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 24 * 60 * 60 * 1000
     },
   })
