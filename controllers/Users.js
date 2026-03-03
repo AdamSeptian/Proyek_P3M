@@ -86,6 +86,7 @@ export const register = async (req, res) => {
     username,
     email,
     password,
+    confPassword,
     role,
     nama_lengkap,
     gelar,
@@ -127,6 +128,10 @@ export const register = async (req, res) => {
         msg: "Email sudah terdaftar. Gunakan email lain.",
       });
     }
+    if (password !== confPassword)
+    return res
+      .status(400)
+      .json({ msg: "Password dan confirm password tidak cocok!" });
     const isAdmin = req.session.userUuid && req.session.role === "admin";
 
     if (!isAdmin) {
