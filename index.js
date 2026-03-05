@@ -55,7 +55,7 @@ app.use(FileUpload());
 app.use(express.json());
 
 // static folder
-app.use("/storage", express.static("storage"));
+// app.use("/storage", express.static("storage", { fallthrough: true }));
 
 // routes
 app.use(UserRoute);
@@ -67,6 +67,13 @@ app.use(LaporanRoute);
 app.use(AgendaRoute);
 app.use(PengurusRoute);
 
+app.use((req, res) => {
+  res.status(404).json({
+    status: 'error',
+    message: 'Ups! Halaman atau file tidak ditemukan.',
+    saran: 'Kembali ke beranda proyek P3M saja ya!'
+  });
+});
 // start server + koneksi database
 const PORT = process.env.PORT || process.env.APP_PORT || 5000;
 

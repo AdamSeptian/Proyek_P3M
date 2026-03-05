@@ -1,12 +1,13 @@
 import express from "express";
 import {
     getAgendas,
+    getAgendaImage,
     getAgendaByUuid,
     createAgenda,
     updateAgenda,
     deleteAgenda,
     verifyAgendaByAdmin,
-    rejectAgendaByAdmin
+    rejectAgendaByAdmin,
 } from "../controllers/Agenda.js";
 import { 
     verifyUser,
@@ -20,6 +21,8 @@ import {
 const router = express.Router();
 
 router.get("/agendas", optionalVerifyUser, getAgendas);
+
+router.get("/storage/agenda/:filename", optionalVerifyUser, getAgendaImage);
 
 router.get("/agendas/:uuid", optionalVerifyUser, getAgendaByUuid);
 

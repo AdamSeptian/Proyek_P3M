@@ -3,17 +3,21 @@ import {
     getProfilOrganisasis,
     createProfilOrganisasi,
     updateProfilOrganisasi,
-    deleteProfilOrganisasi
+    deleteProfilOrganisasi,
+    getProfilOrganisasiImage
 } from "../controllers/ProfilOrganisasi.js";
 
 import {
     verifyUser,
-    adminOrKetuaForum
+    adminOrKetuaForum,
+    optionalVerifyUser
 } from "../middleware/AuthUser.js";
 
 const router = express.Router();
 
-router.get("/profil-organisasi", getProfilOrganisasis);
+router.get("/profil-organisasi", optionalVerifyUser, getProfilOrganisasis);
+
+router.get("/storage/profil/:filename", optionalVerifyUser, getProfilOrganisasiImage);
 
 router.post("/profil-organisasi", verifyUser, adminOrKetuaForum, createProfilOrganisasi);
 

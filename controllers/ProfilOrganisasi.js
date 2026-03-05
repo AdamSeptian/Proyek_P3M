@@ -2,6 +2,9 @@ import ProfilOrganisasi from "../models/ProfilOrganisasiModel.js";
 import Users from "../models/UserModel.js";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getProfilOrganisasis = async (req, res) => {
       try {
@@ -27,6 +30,39 @@ export const getProfilOrganisasis = async (req, res) => {
     res.status(500).json({ msg: error.message });
   }
 }
+
+export const getProfilOrganisasiImage = async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(__dirname, "../storage/profil", filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ msg: "Gambar tidak ditemukan" });
+        }
+
+        const profil = await ProfilOrganisasi.findOne({
+            where: { image: filename }
+        });
+
+        if (!profil) {
+            return res.status(404).json({ msg: "Data profil tidak ditemukan" });
+        }
+        if (profil.status !== "verified") {
+            const isAdmin = req.role === "admin";
+            const isOwner = req.userUuid === profil.users_uuid;
+
+            if (!isAdmin && !isOwner) {
+                return res.status(403).json({ 
+                    msg: "Akses ditolak." 
+                });
+            }
+        }
+
+        res.sendFile(filePath);
+    } catch (error) {
+        res.status(500).json({ msg: error.message });
+    }
+};
 
 export const createProfilOrganisasi = async (req, res) => {
   const { nama_organisasi, deskripsi_organisasi } = req.body || {};

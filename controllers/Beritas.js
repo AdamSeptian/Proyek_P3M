@@ -3,6 +3,9 @@ import Users from "../models/UserModel.js";
 import path from "path";
 import fs from "fs";
 import { Op } from "sequelize";
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getBeritas = async (req, res) => {
   try {
@@ -23,10 +26,10 @@ export const getBeritas = async (req, res) => {
 
     const response = await Beritas.findAll({
       where: whereCondition,
-      attributes: ["uuid", "judul_berita", "isi_berita", "image", "url", "status", "createdAt"],
+      attributes: ["uuid", "judul_berita", "isi_berita", "status", "image", "url", "createdAt"],
       include: [{
         model: Users,
-        attributes: ["username", "role"]
+        attributes: ["username"]
       }]
     });
 
@@ -34,6 +37,39 @@ export const getBeritas = async (req, res) => {
   } catch (error) {
     res.status(500).json({ msg: error.message });
   }
+};
+
+export const getBeritaImage = async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(__dirname, "../storage/berita", filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ msg: "Gambar tidak ditemukan" });
+        }
+
+        const berita = await Beritas.findOne({
+            where: { image: filename }
+        });
+
+        if (!berita) {
+            return res.status(404).json({ msg: "Data berita tidak ditemukan" });
+        }
+        if (berita.status !== "verified") {
+            const isAdmin = req.role === "admin";
+            const isOwner = req.userUuid === berita.users_uuid;
+
+            if (!isAdmin && !isOwner) {
+                return res.status(403).json({ 
+                    msg: "Akses ditolak." 
+                });
+            }
+        }
+
+        res.sendFile(filePath);
+    } catch (error) {
+        res.status(500).json({ msg: error.message });
+    }
 };
 
 export const getBeritaById = async (req, res) => {
