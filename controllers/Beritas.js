@@ -109,7 +109,7 @@ export const getBeritaById = async (req, res) => {
       include: [
         {
         model: Users,
-        attributes: ["username", "role"]
+        attributes: ["username"]
         },
         {
           model: Kategori,

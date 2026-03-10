@@ -29,7 +29,7 @@ export const getLaporans = async (req, res) => {
            attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt"],
            include: [{
              model: Users,
-             attributes: ["username", "role"]
+             attributes: ["username"]
            }]
          });
      
@@ -94,7 +94,7 @@ export const getLaporanByUuid = async (req, res) => {
       attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt"],
       include: [{
       model: Users,
-      attributes: ["username", "role"]
+      attributes: ["username"]
       }]
     });
 
