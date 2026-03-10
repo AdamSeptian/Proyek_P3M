@@ -16,6 +16,7 @@ const Kategori = db.define("kategori", {
     nama_kategori: {
         type: DataTypes.STRING,
         allowNull: false,
+        unique: true,
         validate: {
             notEmpty: true,
         },
