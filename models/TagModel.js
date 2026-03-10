@@ -16,6 +16,7 @@ const Tag = db.define("tag", {
     nama_tag: {
         type: DataTypes.STRING,
         allowNull: false,
+        unique: true,
         validate: {
             notEmpty: true,
         },
