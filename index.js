@@ -55,7 +55,6 @@ app.use(express.json());
 // static folder
 // app.use("/storage", express.static("storage", { fallthrough: true }));
 
-// routes
 app.use(UserRoute);
 app.use(BeritaRoute);
 app.use(kategoriRoute);

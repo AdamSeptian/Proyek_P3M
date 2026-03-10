@@ -103,7 +103,7 @@ export const updateKategori = async (req, res) => {
             where: {
                 [Op.and]: [
                     { nama_kategori: nama_kategori },
-                    { uuid: { [Op.ne]: kategori.uuid } } // Op.ne artinya Not Equal (Tidak Sama Dengan)
+                    { uuid: { [Op.ne]: kategori.uuid } }
                 ]
             }
         });
