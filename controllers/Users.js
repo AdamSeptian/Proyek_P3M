@@ -4,7 +4,9 @@ import argon2 from "argon2";
 import { Op } from "sequelize";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from 'url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getUsers = async (req, res) => {
   try {
@@ -37,6 +39,39 @@ export const getUsers = async (req, res) => {
   } catch (error) {
     res.status(500).json({ msg: error.message });
   }
+};
+
+export const getUserImage = async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(__dirname, "../storage/anggota", filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ msg: "anggota Tidak Ditemukan" });
+        }
+
+        const anggota = await Anggotas.findOne({
+            where: { image: filename }
+        });
+
+        if (!anggota) {
+            return res.status(404).json({ msg: "Data anggota tidak ditemukan" });
+        }
+        if (anggota.status !== "verified") {
+            const isAdmin = req.role === "admin";
+            const isOwner = req.userUuid === anggota.users_uuid;
+
+            if (!isAdmin && !isOwner) {
+                return res.status(403).json({ 
+                    msg: "Akses ditolak." 
+                });
+            }
+        }
+
+        res.sendFile(filePath);
+    } catch (error) {
+        res.status(500).json({ msg: error.message });
+    }
 };
 
 export const getUserById = async (req, res) => {
