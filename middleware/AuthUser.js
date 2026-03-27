@@ -12,9 +12,10 @@ export const verifyUser = async (req, res, next) => {
     attributes: ["uuid", "role", "status"],
   });
 
-  if (!user) {
-    return res.status(404).json({ msg: "User tidak ditemukan" });
-  }
+  if(!user) {
+        req.session.destroy();
+        return res.status(404).json({msg: "User tidak ditemukan, sesi dihentikan."});
+    }
 
   req.userUuid = user.uuid;
   req.role = user.role;

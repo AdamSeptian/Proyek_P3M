@@ -26,7 +26,7 @@ export const getAgendas = async (req, res) => {
 
     const response = await Agendas.findAll({
       where: whereCondition,
-      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "file", "url", "createdAt"],
+      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "status", "file", "url", "createdAt"],
       include: [{
         model: Users,
         attributes: ["username"]
@@ -91,7 +91,7 @@ export const getAgendaByUuid = async (req, res) => {
 
     const response = await Agendas.findOne({
       where: whereCondition,
-      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "file", "url", "createdAt", "updatedAt"],
+      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "status", "file", "url", "createdAt", "updatedAt"],
       include: [{
         model: Users,
         attributes: ["username"]
