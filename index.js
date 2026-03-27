@@ -65,6 +65,7 @@ app.use(ProfilOrganisasiRoute);
 app.use(LaporanRoute);
 app.use(AgendaRoute);
 app.use(PengurusRoute);
+// app.use('/storage', express.static('storage'));
 
 app.use((req, res) => {
   res.status(404).json({

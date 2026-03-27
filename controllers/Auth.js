@@ -109,11 +109,13 @@ export const Me = async (req, res) => {
 export const Logout = (req, res) => {
   req.session.destroy((err) => {
     if (err) {
+      // Hanya kirim 400 jika benar-benar ada error teknis saat menghapus session
       return res.status(400).json({ msg: "Tidak dapat logout" });
-    } else if (!req.session) {
-      return res.status(400).json({ msg: "Anda sudah logout" });
     }
-
+    
+    // Jika tidak ada error, berarti session berhasil dihancurkan
+    // Hapus cookie session di sisi client agar bersih total
+    res.clearCookie("connect.sid"); // "connect.sid" adalah nama default cookie express-session
     res.status(200).json({ msg: "Anda telah logout" });
   });
 };

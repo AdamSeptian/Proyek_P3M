@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getUsers,
+  getUserImage,
   getUserById,
   register,
   updateUsers,
@@ -11,12 +12,15 @@ import {
 import { 
     verifyUser,
     adminOrKetuaForum,
+    optionalVerifyUser,
     onlyVerified
  } from "../middleware/AuthUser.js";
 
 const router = express.Router();
 
 router.get("/users", verifyUser, getUsers);
+
+router.get("/storage/anggota/:filename", optionalVerifyUser, getUserImage);
 
 router.get("/users/:uuid", verifyUser, getUserById);
 
