@@ -8,12 +8,13 @@ import {
 } from "../controllers/Anggota.js";
 import { 
     verifyUser,
-    adminOrAnggota
+    adminOrAnggota,
+    optionalVerifyUser
  } from "../middleware/AuthUser.js";
 
 const router = express.Router();
 
-router.get("/anggotas", getAnggotas);
+router.get("/anggotas", optionalVerifyUser, getAnggotas);
 
 router.get("/anggotas/:uuid", getAnggotaById);
 

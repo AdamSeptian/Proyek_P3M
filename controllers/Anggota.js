@@ -1,23 +1,33 @@
 import Anggotas from "../models/AnggotaModel.js";
 import Users from "../models/UserModel.js";
+import { Op } from "sequelize";
 import path from "path";
 import fs from "fs";
 
 export const getAnggotas = async (req, res) => {
     try {
+        let userFilter = {};
+
+        if (req.role === "admin") {
+            userFilter = {};
+        } else {
+            userFilter = { status: "verified" };
+        }
+
         const response = await Anggotas.findAll({
             include: [{
                 model: Users,
-                attributes: ["uuid", "username", "status"],
-                where: {
-                    status: "verified"
-                }
-            }]
+                attributes: ["uuid", "username", "status", "role"],
+                where: userFilter,
+                required: true
+            }],
+            order: [['createdAt', 'DESC']]
         });
+
         res.status(200).json(response);
 
     } catch (error) {
-        res.status(500).json({ msg: error.message });
+        res.status(500).json({ msg: "Gagal mengambil data anggota: " + error.message });
     }
 };
 
