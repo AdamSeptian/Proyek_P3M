@@ -74,19 +74,18 @@ export const getAgendaImage = async (req, res) => {
 
 export const getAgendaByUuid = async (req, res) => {
     try {
-    let whereCondition = {};
+    const { uuid } = req.params;
 
+    let whereCondition = { uuid: uuid };
+    
     if (req.role === "admin") {
-      whereCondition = {};
     } else if (req.role === "humas") {
-      whereCondition = {
-        [Op.or]: [
-          { status: "verified" },
-          { users_uuid: req.userUuid }
-        ]
-      };
+      whereCondition[Op.or] = [
+        { status: "verified" },
+        { users_uuid: req.userUuid }
+      ];
     } else {
-      whereCondition = { status: "verified" };
+      whereCondition.status = "verified";
     }
 
     const response = await Agendas.findOne({

@@ -76,27 +76,22 @@ export const getUserImage = async (req, res) => {
 
 export const getUserById = async (req, res) => {
   try {
-    // Pastikan UUID selalu jadi filter utama
     let whereCondition = { uuid: req.params.uuid };
 
-    if (req.role !== "admin") {
-      // Jika BUKAN admin, tambahkan batasan status
+    if (req.role !== "admin" && req.role !== "ketua_forum") {
       if (req.userUuid) {
-        // User login: cuma bisa lihat yang verified ATAU miliknya sendiri
         whereCondition = {
           uuid: req.params.uuid,
           [Op.or]: [
             { status: "verified" },
-            { uuid: req.userUuid } // Pakai uuid karena ini tabel Users
+            { uuid: req.userUuid }
           ]
         };
       } else {
-        // Pengunjung umum: cuma bisa lihat yang verified
         whereCondition.status = "verified";
       }
     }
-    // Jika admin, whereCondition tetap { uuid: req.params.uuid }
-
+    
     const user = await Users.findOne({
       where: whereCondition,
       attributes: { exclude: ["password"] },
@@ -391,7 +386,7 @@ export const deleteUsers = async (req, res) => {
 export const rejectUserByAdmin = async (req, res) => {
   try {
 
-    if (req.role !== "admin") {
+    if (req.role !== "admin" && req.role !== "ketua_forum") {
       return res.status(403).json({ msg: "Akses terlarang!" });
     }
 
@@ -414,7 +409,7 @@ export const rejectUserByAdmin = async (req, res) => {
 export const verifyUserByAdmin = async (req, res) => {
   try {
 
-    if (req.role !== "admin") {
+    if (req.role !== "admin" && req.role !== "ketua_forum") {
       return res.status(403).json({ msg: "Akses terlarang!" });
     }
 
