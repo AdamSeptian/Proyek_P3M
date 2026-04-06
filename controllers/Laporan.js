@@ -74,20 +74,17 @@ export const getLaporanFile = async (req, res) => {
 
 export const getLaporanByUuid = async (req, res) => {
       try {
-    let whereCondition = {};
-
-    if (req.role === "admin") {
-      whereCondition = {};
-    } else if (req.role === "ketua_forum") {
-      whereCondition = {
-        [Op.or]: [
-          { status: "verified" },
-          { users_uuid: req.userUuid }
-        ]
-      };
-    } else {
-      whereCondition = { status: "verified" };
-    }
+        const { uuid } = req.params;
+        let whereCondition = { uuid: uuid };
+        if (req.role === "admin") {
+        } else if (req.role === "ketua_forum") {
+          whereCondition[Op.or] = [
+            { status: "verified" },
+            { users_uuid: req.userUuid }
+          ];
+        } else {
+          whereCondition.status = "verified";
+        }
 
     const response = await Laporans.findOne({
       where: whereCondition,
