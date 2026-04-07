@@ -7,7 +7,9 @@ import {
     deleteLaporan,
     verifyLaporanByAdmin,
     rejectLaporanByAdmin,
-    getLaporanFile
+    getLaporanFile,
+    cancelVerifyLaporan,
+    cancelRejectLaporan
 } from "../controllers/Laporan.js";
 import {
     verifyUser,
@@ -35,5 +37,9 @@ router.delete("/laporans/:uuid", verifyUser, adminOrKetuaForum, adminOrSelf, del
 router.patch("/laporans/:uuid/verify", verifyUser, adminOnly, onlyVerified, verifyLaporanByAdmin);
 
 router.patch("/laporans/:uuid/reject", verifyUser, adminOnly, onlyVerified, rejectLaporanByAdmin);
+
+router.patch("/laporans/:uuid/cancel-verify", verifyUser, adminOnly, onlyVerified, cancelVerifyLaporan);
+
+router.patch("/laporans/:uuid/cancel-reject", verifyUser, adminOnly, onlyVerified, cancelRejectLaporan);
 
 export default router;
