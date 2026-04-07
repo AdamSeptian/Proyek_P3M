@@ -307,3 +307,22 @@ export const rejectLaporanByAdmin = async (req, res) => {
         res.status(500).json({ msg: error.message });
     }
 }
+
+export const cancelVerifyLaporan = async (req, res) => {
+  try {
+    const laporan = await Laporans.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!laporan) return res.status(404).json({ msg: "Laporan tidak ditemukan" });
+
+    await Laporans.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Verifikasi dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};

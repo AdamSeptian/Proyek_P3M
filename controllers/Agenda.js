@@ -328,3 +328,22 @@ export const rejectAgendaByAdmin = async (req, res) => {
         res.status(500).json({ msg: error.message });
     }
 }
+
+export const cancelVerifyAgenda = async (req, res) => {
+  try {
+    const agenda = await Agendas.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!agenda) return res.status(404).json({ msg: "Agenda tidak ditemukan" });
+
+    await Agendas.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Verifikasi dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
