@@ -9,6 +9,7 @@ import {
     verifyAgendaByAdmin,
     rejectAgendaByAdmin,
     cancelVerifyAgenda,
+    cancelRejectAgenda,
 } from "../controllers/Agenda.js";
 import { 
     verifyUser,
@@ -38,5 +39,7 @@ router.patch("/agendas/:uuid/verify", verifyUser, adminOnly, onlyVerified, verif
 router.patch("/agendas/:uuid/reject", verifyUser, adminOnly, onlyVerified, rejectAgendaByAdmin);
 
 router.patch("/agendas/:uuid/cancel-verify", verifyUser, adminOnly, onlyVerified, cancelVerifyAgenda);
+
+router.patch("/agendas/:uuid/cancel-reject", verifyUser, adminOnly, onlyVerified, cancelRejectAgenda);
 
 export default router;

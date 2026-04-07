@@ -8,7 +8,8 @@ import {
     deleteBerita,
     verifyBeritaByAdmin,
     rejectBeritaByAdmin,
-    cancelVerifyBerita
+    cancelVerifyBerita,
+    cancelRejectBerita
 } from "../controllers/Beritas.js";
 import { 
     verifyUser,
@@ -38,5 +39,7 @@ router.patch("/beritas/:uuid/verify", verifyUser, adminOnly, onlyVerified, verif
 router.patch("/beritas/:uuid/reject", verifyUser, adminOnly, onlyVerified, rejectBeritaByAdmin);
 
 router.patch('/beritas/:uuid/cancel-verify', verifyUser, adminOnly, onlyVerified, cancelVerifyBerita);
+
+router.patch('/beritas/:uuid/cancel-reject', verifyUser, adminOnly, onlyVerified, cancelRejectBerita);
 
 export default router; 

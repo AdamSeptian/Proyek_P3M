@@ -8,7 +8,8 @@ import {
     verifyLaporanByAdmin,
     rejectLaporanByAdmin,
     getLaporanFile,
-    cancelVerifyLaporan
+    cancelVerifyLaporan,
+    cancelRejectLaporan
 } from "../controllers/Laporan.js";
 import {
     verifyUser,
@@ -38,5 +39,7 @@ router.patch("/laporans/:uuid/verify", verifyUser, adminOnly, onlyVerified, veri
 router.patch("/laporans/:uuid/reject", verifyUser, adminOnly, onlyVerified, rejectLaporanByAdmin);
 
 router.patch("/laporans/:uuid/cancel-verify", verifyUser, adminOnly, onlyVerified, cancelVerifyLaporan);
+
+router.patch("/laporans/:uuid/cancel-reject", verifyUser, adminOnly, onlyVerified, cancelRejectLaporan);
 
 export default router;

@@ -400,3 +400,22 @@ export const cancelVerifyBerita = async (req, res) => {
     res.status(500).json({ msg: error.message });
   }
 };
+
+export const cancelRejectBerita = async (req, res) => {
+  try {
+    const berita = await Beritas.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!berita) return res.status(404).json({ msg: "Berita tidak ditemukan" });
+
+    await Beritas.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Penolakan dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
