@@ -1,4 +1,4 @@
-import db from "../config/database.js";
+import db from "../config/Database.js";
 import Users from "../models/UserModel.js";
 import Anggotas from "../models/AnggotaModel.js";
 import argon2 from "argon2";
