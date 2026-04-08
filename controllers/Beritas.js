@@ -291,10 +291,10 @@ export const updateBerita = async (req, res) => {
             },
         });
         if (kategori_uuid) {
-            await berita.setKategori(kategori_uuid);
+            await berita.setKategoris(kategori_uuid);
         }
         if (tag_uuid) {
-            await berita.setTag(tag_uuid);
+            await berita.setTags(tag_uuid);
         }
         res.status(200).json({ msg: "Berita berhasil diupdate" });
 
