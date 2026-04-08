@@ -251,7 +251,7 @@ export const updateUsers = async (req, res) => {
   try {
     const user = await Users.findOne({
       where: { uuid: req.params.uuid },
-      include: [{ model: Anggotas }], 
+      include: [{ model: Anggotas }],
     });
 
     if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
@@ -259,23 +259,24 @@ export const updateUsers = async (req, res) => {
     if (req.role !== "admin" && req.userUuid !== user.uuid) {
       return res.status(403).json({ msg: "Akses terlarang!" });
     }
-    const restrictedRoles = ["admin", "humas", "ketua_forum"];
 
     const {
       username, email, password,
       nama_lengkap, gelar, jabatan, masa_jabat,
       instansi, linkedin, google_scholar, scopus, sinta,
+      role, status
     } = req.body;
 
-        if (!restrictedRoles.includes(user.role)) {
-          if (!nama_lengkap || nama_lengkap === "") return res.status(400).json({ msg: "Nama lengkap wajib diisi untuk Anggota" });
-          if (!gelar || gelar === "") return res.status(400).json({ msg: "Gelar wajib diisi untuk Anggota" });
-          if (!jabatan || jabatan === "") return res.status(400).json({ msg: "Jabatan wajib diisi untuk Anggota" });
-          if (!masa_jabat || masa_jabat === "") return res.status(400).json({ msg: "Masa jabat wajib diisi untuk Anggota" });
-          if (!instansi || instansi === "") return res.status(400).json({ msg: "Instansi wajib diisi untuk Anggota" });
-        }
-
+    const restrictedRoles = ["admin", "humas", "ketua_forum"];
     const anggotaLama = user.anggotas && user.anggotas.length > 0 ? user.anggotas[0] : null;
+
+    if (req.role !== "admin" && !restrictedRoles.includes(user.role)) {
+      if (!nama_lengkap) return res.status(400).json({ msg: "Nama lengkap wajib diisi untuk Anggota" });
+      if (!gelar) return res.status(400).json({ msg: "Gelar wajib diisi untuk Anggota" });
+      if (!jabatan) return res.status(400).json({ msg: "Jabatan wajib diisi untuk Anggota" });
+      if (!masa_jabat) return res.status(400).json({ msg: "Masa jabat wajib diisi untuk Anggota" });
+      if (!instansi) return res.status(400).json({ msg: "Instansi wajib diisi untuk Anggota" });
+    }
 
     let hashPassword = user.password;
     if (password && password !== "") {
@@ -316,16 +317,16 @@ export const updateUsers = async (req, res) => {
     };
 
     if (req.role === "admin") {
-      updateDataUser.role = req.body.role || user.role;
-      updateDataUser.status = req.body.status || user.status;
+      updateDataUser.role = role || user.role;
+      updateDataUser.status = status || user.status;
     }
 
     const updateDataAnggota = {
-      nama_lengkap: nama_lengkap !== undefined ? nama_lengkap : (anggotaLama ? anggotaLama.nama_lengkap : ""),
-      gelar: gelar !== undefined ? gelar : (anggotaLama ? anggotaLama.gelar : ""),
-      jabatan: jabatan !== undefined ? jabatan : (anggotaLama ? anggotaLama.jabatan : ""),
-      masa_jabat: masa_jabat !== undefined ? masa_jabat : (anggotaLama ? anggotaLama.masa_jabat : ""),
-      instansi: instansi !== undefined ? instansi : (anggotaLama ? anggotaLama.instansi : ""),
+      nama_lengkap: nama_lengkap || (anggotaLama ? anggotaLama.nama_lengkap : ""),
+      gelar: gelar || (anggotaLama ? anggotaLama.gelar : ""),
+      jabatan: jabatan || (anggotaLama ? anggotaLama.jabatan : ""),
+      masa_jabat: masa_jabat || (anggotaLama ? anggotaLama.masa_jabat : ""),
+      instansi: instansi || (anggotaLama ? anggotaLama.instansi : ""),
       linkedin: linkedin || (anggotaLama ? anggotaLama.linkedin : ""),
       google_scholar: google_scholar || (anggotaLama ? anggotaLama.google_scholar : ""),
       scopus: scopus || (anggotaLama ? anggotaLama.scopus : ""),

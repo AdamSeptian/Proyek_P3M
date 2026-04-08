@@ -8,6 +8,8 @@ import {
     deleteAgenda,
     verifyAgendaByAdmin,
     rejectAgendaByAdmin,
+    cancelVerifyAgenda,
+    cancelRejectAgenda,
 } from "../controllers/Agenda.js";
 import { 
     verifyUser,
@@ -35,5 +37,9 @@ router.delete("/agendas/:uuid", verifyUser, adminOrHumas, onlyVerified, adminOrS
 router.patch("/agendas/:uuid/verify", verifyUser, adminOnly, onlyVerified, verifyAgendaByAdmin);
 
 router.patch("/agendas/:uuid/reject", verifyUser, adminOnly, onlyVerified, rejectAgendaByAdmin);
+
+router.patch("/agendas/:uuid/cancel-verify", verifyUser, adminOnly, onlyVerified, cancelVerifyAgenda);
+
+router.patch("/agendas/:uuid/cancel-reject", verifyUser, adminOnly, onlyVerified, cancelRejectAgenda);
 
 export default router;
