@@ -246,6 +246,10 @@ export const updateBerita = async (req, res) => {
             return res.status(404).json({ msg: "Berita tidak ditemukan" });
         }
 
+        if (req.role !== "admin" && berita.users_uuid !== req.userUuid) {
+            return res.status(403).json({ msg: "Akses terlarang" });
+        }
+
         if (berita.status === "verified") {
             return res.status(400).json({
                 msg: "Berita yang sudah diverifikasi tidak dapat diubah"
@@ -255,50 +259,58 @@ export const updateBerita = async (req, res) => {
         let fileName = berita.image;
 
         if (req.files && req.files.file) {
-          const file = req.files.file;
-          const fileSize = file.data.length;
-          const ext = path.extname(file.name).toLowerCase();
-          const allowedType = [".png", ".jpg", ".jpeg"];
+            const file = req.files.file;
+            const fileSize = file.data.length;
+            const ext = path.extname(file.name).toLowerCase();
+            const allowedType = [".png", ".jpg", ".jpeg"];
 
-          if (!allowedType.includes(ext)) {
-              return res.status(422).json({ msg: "Format harus JPG, PNG, atau JPEG" });
-          }
-          if (fileSize > 5000000) {
-              return res.status(422).json({ msg: "Image harus kurang dari 5 MB" });
-          }
+            if (!allowedType.includes(ext)) {
+                return res.status(422).json({ msg: "Format harus JPG, PNG, atau JPEG" });
+            }
+            if (fileSize > 5000000) {
+                return res.status(422).json({ msg: "Image harus kurang dari 5 MB" });
+            }
+            
+            const oldPath = `./storage/berita/${berita.image}`;
+            if (fs.existsSync(oldPath)) {
+                fs.unlinkSync(oldPath);
+            }
 
-          fileName = file.md5 + "_" + Date.now() + ext;
-
-          await file.mv(`./storage/berita/${fileName}`);
-
-          const oldPath = `./storage/berita/${berita.image}`;
-          if (berita.image !== fileName && fs.existsSync(oldPath)) {
-              fs.unlinkSync(oldPath);
-          }
-      }
+            fileName = file.md5 + "_" + Date.now() + ext;
+            await file.mv(`./storage/berita/${fileName}`);
+        }
 
         const url = `${req.protocol}://${req.get("host")}/storage/berita/${fileName}`;
+        
         const { judul_berita, isi_berita, kategori_uuid, tag_uuid } = req.body;
 
+        // Update Tabel Utama
         await Beritas.update({
-            judul_berita,
-            isi_berita,
+            judul_berita: judul_berita || berita.judul_berita,
+            isi_berita: isi_berita || berita.isi_berita,
             image: fileName,
             url: url
         }, {
             where: {
-                uuid: req.params.uuid,
+                uuid: berita.uuid,
             },
         });
         if (kategori_uuid) {
-            await berita.setKategori(kategori_uuid);
+            const katArray = Array.isArray(kategori_uuid) ? kategori_uuid : [kategori_uuid];
+            const cleanKat = katArray.filter(id => id !== "");
+            if (cleanKat.length > 0) await berita.setKategoris(cleanKat);
         }
+
         if (tag_uuid) {
-            await berita.setTag(tag_uuid);
+            const tagArray = Array.isArray(tag_uuid) ? tag_uuid : [tag_uuid];
+            const cleanTag = tagArray.filter(id => id !== "");
+            if (cleanTag.length > 0) await berita.setTags(cleanTag);
         }
+
         res.status(200).json({ msg: "Berita berhasil diupdate" });
 
     } catch (error) {
+        console.error(error);
         res.status(500).json({ msg: error.message });
     }
 };
