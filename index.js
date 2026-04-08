@@ -26,6 +26,12 @@ const store = new SequelizeStoreSession({
   db: db,
 });
 
+const allowedOrigins = [
+  'http://localhost:62484', // Port Flutter Web kamu
+  'http://localhost:5000',  // Port backend sendiri
+  // Tambahkan origin lain jika port flutter web berubah
+];
+
 app.set("trust proxy", 1);
 app.use(
   session({
@@ -45,7 +51,17 @@ app.use(
 app.use(
   cors({
     credentials: true,
-    origin: true,
+    origin: function (origin, callback) {
+      // Izinkan request tanpa origin (seperti dari Mobile/Postman/Emulator)
+      if (!origin) return callback(null, true);
+      
+      // Izinkan jika origin ada di daftar allowedOrigins
+      if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('http://localhost')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
   })
 );
 
