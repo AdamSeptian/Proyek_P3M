@@ -5,9 +5,16 @@ import argon2 from "argon2";
 export const Login = async (req, res) => {
   try {
     if (req.session.userUuid) {
-      return res.status(400).json({
-        msg: "Anda masih login. Silakan logout terlebih dahulu sebelum login ke akun lain."
+      const sessionUser = await Users.findOne({
+        where: { uuid: req.session.userUuid }
       });
+      if (!sessionUser) {
+        req.session.destroy();
+      } else {
+        return res.status(400).json({
+          msg: "Anda masih login. Silakan logout terlebih dahulu sebelum login ke akun lain."
+        });
+      }
     }
 
     const user = await Users.findOne({
@@ -75,29 +82,14 @@ export const Me = async (req, res) => {
       where: {
         uuid: req.session.userUuid,
       },
-      include: [
-        {
-          model: Anggotas,
-          attributes: [
-            "uuid",
-            "nama_lengkap",
-            "gelar",
-            "jabatan",
-            "masa_jabat",
-            "instansi",
-            "linkedin",
-            "google_scholar",
-            "scopus",
-            "sinta",
-            "image",
-            "url",
-          ],
-        },
-      ],
+      include: [{ model: Anggotas }],
     });
 
-    if (!user)
-      return res.status(404).json({ msg: "User tidak ditemukan" });
+    if (!user) {
+      return req.session.destroy((err) => {
+        res.status(401).json({ msg: "Akun sudah tidak aktif atau tidak ditemukan. Silakan login kembali." });
+      });
+    }
 
     res.status(200).json(user);
 
@@ -109,11 +101,13 @@ export const Me = async (req, res) => {
 export const Logout = (req, res) => {
   req.session.destroy((err) => {
     if (err) {
+      // Hanya kirim 400 jika benar-benar ada error teknis saat menghapus session
       return res.status(400).json({ msg: "Tidak dapat logout" });
-    } else if (!req.session) {
-      return res.status(400).json({ msg: "Anda sudah logout" });
     }
-
+    
+    // Jika tidak ada error, berarti session berhasil dihancurkan
+    // Hapus cookie session di sisi client agar bersih total
+    res.clearCookie("connect.sid"); // "connect.sid" adalah nama default cookie express-session
     res.status(200).json({ msg: "Anda telah logout" });
   });
 };

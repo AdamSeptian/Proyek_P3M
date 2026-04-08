@@ -1,5 +1,7 @@
 import Beritas from "../models/BeritaModel.js";
 import Users from "../models/UserModel.js";
+import Kategori from "../models/KategoriModel.js";
+import Tag from "../models/TagModel.js";
 import path from "path";
 import fs from "fs";
 import { Op } from "sequelize";
@@ -27,10 +29,22 @@ export const getBeritas = async (req, res) => {
     const response = await Beritas.findAll({
       where: whereCondition,
       attributes: ["uuid", "judul_berita", "isi_berita", "status", "image", "url", "createdAt"],
-      include: [{
+      include: [
+        {
         model: Users,
         attributes: ["username"]
-      }]
+        },
+        {
+          model: Kategori,
+          attributes: ["nama_kategori", "uuid"],
+          through: { attributes: [] }
+        },
+        {
+          model: Tag,
+          attributes: ["nama_tag", "uuid"],
+          through: { attributes: [] }
+        }
+    ]
     });
 
     res.status(200).json(response);
@@ -74,28 +88,39 @@ export const getBeritaImage = async (req, res) => {
 
 export const getBeritaById = async (req, res) => {
   try {
-    let whereCondition = {};
-
+    const { uuid } = req.params;
+    
+    let whereCondition = { uuid: uuid };
+    
     if (req.role === "admin") {
-      whereCondition = {};
     } else if (req.role === "humas") {
-      whereCondition = {
-        [Op.or]: [
-          { status: "verified" },
-          { users_uuid: req.userUuid }
-        ]
-      };
+      whereCondition[Op.or] = [
+        { status: "verified" },
+        { users_uuid: req.userUuid }
+      ];
     } else {
-      whereCondition = { status: "verified" };
+      whereCondition.status = "verified";
     }
 
     const response = await Beritas.findOne({
       where: whereCondition,
-      attributes: ["uuid", "judul_berita", "isi_berita", "status", "createdAt", "updatedAt"],
-      include: [{
-        model: Users,
-        attributes: ["username", "role"]
-      }]
+      attributes: ["uuid", "judul_berita", "isi_berita", "status", "image", "url", "createdAt", "updatedAt"],
+      include: [
+        {
+          model: Users,
+          attributes: ["username"]
+        },
+        {
+          model: Kategori,
+          attributes: ["nama_kategori", "uuid"],
+          through: { attributes: [] }
+        },
+        {
+          model: Tag,
+          attributes: ["nama_tag", "uuid"],
+          through: { attributes: [] }
+        }
+      ]
     });
 
     if (!response) {
@@ -109,7 +134,7 @@ export const getBeritaById = async (req, res) => {
 };
 
 export const createBerita = async (req, res) => {
-  const { judul_berita, isi_berita } = req.body || {};
+  const { judul_berita, isi_berita, kategori_uuid, tag_uuid } = req.body || {};
 
   if (req.files === null)
     return res.status(400).json({ msg: "Tidak ada gambar yang diunggah!" });
@@ -161,17 +186,47 @@ export const createBerita = async (req, res) => {
         users_uuid: req.userUuid,
       });
 
-      res.status(201).json({
+      if (kategori_uuid && kategori_uuid.length > 0) {
+        const cleanKategori = Array.isArray(kategori_uuid) 
+            ? kategori_uuid.filter(id => id !== "" && id !== null)
+            : kategori_uuid;
+
+        if (cleanKategori.length > 0 || typeof cleanKategori === 'string') {
+            await newBerita.addKategori(cleanKategori);
+        }
+    }
+
+    if (tag_uuid && tag_uuid.length > 0) {
+        const cleanTag = Array.isArray(tag_uuid) 
+            ? tag_uuid.filter(id => id !== "" && id !== null)
+            : tag_uuid;
+
+        if (cleanTag !== "" && cleanTag !== null) {
+            try {
+                await newBerita.addTag(cleanTag);
+            } catch (fkError) {
+                return res.status(400).json({ 
+                    msg: "Gagal menambahkan Tag. Pastikan UUID Tag yang Anda pilih benar/tersedia." 
+                });
+            }
+        }
+    }
+
+    res.status(201).json({
         msg: "Berita berhasil dibuat",
         data: newBerita
-      });
+    });
     } catch (error) {
       if (error.name === "SequelizeValidationError") {
         return res.status(400).json({
           msg: "Data tidak valid, pastikan semua field terisi dengan benar",
         });
       }
-
+      if (error.name === "SequelizeForeignKeyConstraintError") {
+        return res.status(400).json({
+            msg: "Gagal menyimpan relasi. Kategori atau Tag yang Anda masukkan tidak terdaftar di database."
+        });
+    }
       res.status(500).json({
         msg: error.message,
       });
@@ -223,10 +278,11 @@ export const updateBerita = async (req, res) => {
       }
 
         const url = `${req.protocol}://${req.get("host")}/storage/berita/${fileName}`;
+        const { judul_berita, isi_berita, kategori_uuid, tag_uuid } = req.body;
 
         await Beritas.update({
-            judul_berita: req.body.judul_berita,
-            isi_berita: req.body.isi_berita,
+            judul_berita,
+            isi_berita,
             image: fileName,
             url: url
         }, {
@@ -234,7 +290,12 @@ export const updateBerita = async (req, res) => {
                 uuid: req.params.uuid,
             },
         });
-
+        if (kategori_uuid) {
+            await berita.setKategori(kategori_uuid);
+        }
+        if (tag_uuid) {
+            await berita.setTag(tag_uuid);
+        }
         res.status(200).json({ msg: "Berita berhasil diupdate" });
 
     } catch (error) {
@@ -319,4 +380,42 @@ export const rejectBeritaByAdmin = async (req, res) => {
     } catch (error) {
         res.status(500).json({ msg: error.message });
     }
+};
+
+export const cancelVerifyBerita = async (req, res) => {
+  try {
+    const berita = await Beritas.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!berita) return res.status(404).json({ msg: "Berita tidak ditemukan" });
+
+    await Beritas.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Verifikasi dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+export const cancelRejectBerita = async (req, res) => {
+  try {
+    const berita = await Beritas.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!berita) return res.status(404).json({ msg: "Berita tidak ditemukan" });
+
+    await Beritas.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Penolakan dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
 };

@@ -29,7 +29,7 @@ export const getLaporans = async (req, res) => {
            attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt"],
            include: [{
              model: Users,
-             attributes: ["username", "role"]
+             attributes: ["username"]
            }]
          });
      
@@ -74,27 +74,24 @@ export const getLaporanFile = async (req, res) => {
 
 export const getLaporanByUuid = async (req, res) => {
       try {
-    let whereCondition = {};
-
-    if (req.role === "admin") {
-      whereCondition = {};
-    } else if (req.role === "ketua_forum") {
-      whereCondition = {
-        [Op.or]: [
-          { status: "verified" },
-          { users_uuid: req.userUuid }
-        ]
-      };
-    } else {
-      whereCondition = { status: "verified" };
-    }
+        const { uuid } = req.params;
+        let whereCondition = { uuid: uuid };
+        if (req.role === "admin") {
+        } else if (req.role === "ketua_forum") {
+          whereCondition[Op.or] = [
+            { status: "verified" },
+            { users_uuid: req.userUuid }
+          ];
+        } else {
+          whereCondition.status = "verified";
+        }
 
     const response = await Laporans.findOne({
       where: whereCondition,
       attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt"],
       include: [{
       model: Users,
-      attributes: ["username", "role"]
+      attributes: ["username"]
       }]
     });
 
@@ -310,3 +307,41 @@ export const rejectLaporanByAdmin = async (req, res) => {
         res.status(500).json({ msg: error.message });
     }
 }
+
+export const cancelVerifyLaporan = async (req, res) => {
+  try {
+    const laporan = await Laporans.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!laporan) return res.status(404).json({ msg: "Laporan tidak ditemukan" });
+
+    await Laporans.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Verifikasi dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+export const cancelRejectLaporan = async (req, res) => {
+  try {
+    const laporan = await Laporans.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!laporan) return res.status(404).json({ msg: "Laporan tidak ditemukan" });
+
+    await Laporans.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Penolakan dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};

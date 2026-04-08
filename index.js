@@ -5,7 +5,7 @@ import session from "express-session";
 import SequelizeStore from "connect-session-sequelize";
 import FileUpload from "express-fileupload";
 import db from "./config/Database.js";
-
+import kategoriRoute from "./routes/KategoriRoute.js"
 import UserRoute from "./routes/UserRoute.js";
 import BeritaRoute from "./routes/BeritaRoute.js";
 import AuthRoute from "./routes/AuthRoute.js";
@@ -14,19 +14,18 @@ import ProfilOrganisasiRoute from "./routes/ProfilOrganisasiRoute.js";
 import LaporanRoute from "./routes/LaporanRoute.js";
 import AgendaRoute from "./routes/AgendaRoute.js";
 import PengurusRoute from "./routes/PengurusRoute.js";
+import TagRoute from "./routes/TagRoute.js";
 
 dotenv.config();
 
 const app = express();
 
-// session store
 const SequelizeStoreSession = SequelizeStore(session.Store);
 
 const store = new SequelizeStoreSession({
   db: db,
 });
 
-// middleware session
 app.set("trust proxy", 1);
 app.use(
   session({
@@ -43,7 +42,6 @@ app.use(
   })
 );
 
-// cors (ubah nanti sesuai domain frontend)
 app.use(
   cors({
     credentials: true,
@@ -57,15 +55,17 @@ app.use(express.json());
 // static folder
 // app.use("/storage", express.static("storage", { fallthrough: true }));
 
-// routes
 app.use(UserRoute);
 app.use(BeritaRoute);
+app.use(kategoriRoute);
+app.use(TagRoute);
 app.use(AuthRoute);
 app.use(AnggotaRoute);
 app.use(ProfilOrganisasiRoute);
 app.use(LaporanRoute);
 app.use(AgendaRoute);
 app.use(PengurusRoute);
+// app.use('/storage', express.static('storage'));
 
 app.use((req, res) => {
   res.status(404).json({

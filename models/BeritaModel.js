@@ -1,5 +1,7 @@
 import { Sequelize } from "sequelize";
 import db from "../config/Database.js";
+import Kategori from "./KategoriModel.js";
+import Tag from "./TagModel.js";
 import Users from "./UserModel.js";
 
 const { DataTypes } = Sequelize;
@@ -72,8 +74,27 @@ const Beritas = db.define(
 Users.hasMany(Beritas, {
   foreignKey: "users_uuid",
 });
-
 Beritas.belongsTo(Users, {
   foreignKey: "users_uuid",
+});
+Beritas.belongsToMany(Kategori, { 
+    through: "berita_kategori", 
+    foreignKey: "berita_uuid",
+    otherKey: "kategori_uuid" 
+});
+Kategori.belongsToMany(Beritas, { 
+    through: "berita_kategori", 
+    foreignKey: "kategori_uuid",
+    otherKey: "berita_uuid" 
+});
+Beritas.belongsToMany(Tag, { 
+    through: "berita_tag", 
+    foreignKey: "berita_uuid",
+    otherKey: "tag_uuid" 
+});
+Tag.belongsToMany(Beritas, { 
+    through: "berita_tag", 
+    foreignKey: "tag_uuid",
+    otherKey: "berita_uuid" 
 });
 export default Beritas;

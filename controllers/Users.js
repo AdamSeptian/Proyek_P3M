@@ -4,7 +4,9 @@ import argon2 from "argon2";
 import { Op } from "sequelize";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from 'url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getUsers = async (req, res) => {
   try {
@@ -39,28 +41,56 @@ export const getUsers = async (req, res) => {
   }
 };
 
+export const getUserImage = async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(__dirname, "../storage/anggota", filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ msg: "anggota Tidak Ditemukan" });
+        }
+
+        const anggota = await Anggotas.findOne({
+            where: { image: filename }
+        });
+
+        if (!anggota) {
+            return res.status(404).json({ msg: "Data anggota tidak ditemukan" });
+        }
+        if (anggota.status !== "verified") {
+            const isAdmin = req.role === "admin";
+            const isOwner = req.userUuid === anggota.users_uuid;
+
+            if (!isAdmin && !isOwner) {
+                return res.status(403).json({ 
+                    msg: "Akses ditolak." 
+                });
+            }
+        }
+
+        res.sendFile(filePath);
+    } catch (error) {
+        res.status(500).json({ msg: error.message });
+    }
+};
+
 export const getUserById = async (req, res) => {
   try {
-    // Pastikan UUID selalu jadi filter utama
     let whereCondition = { uuid: req.params.uuid };
 
-    if (req.role !== "admin") {
-      // Jika BUKAN admin, tambahkan batasan status
+    if (req.role !== "admin" && req.role !== "ketua_forum") {
       if (req.userUuid) {
-        // User login: cuma bisa lihat yang verified ATAU miliknya sendiri
         whereCondition = {
           uuid: req.params.uuid,
           [Op.or]: [
             { status: "verified" },
-            { uuid: req.userUuid } // Pakai uuid karena ini tabel Users
+            { uuid: req.userUuid }
           ]
         };
       } else {
-        // Pengunjung umum: cuma bisa lihat yang verified
         whereCondition.status = "verified";
       }
     }
-    // Jika admin, whereCondition tetap { uuid: req.params.uuid }
 
     const user = await Users.findOne({
       where: whereCondition,
@@ -221,12 +251,10 @@ export const updateUsers = async (req, res) => {
   try {
     const user = await Users.findOne({
       where: { uuid: req.params.uuid },
-      include: [{ model: Anggotas, as: "anggotas" }],
+      include: [{ model: Anggotas }],
     });
 
-    if (!user) {
-      return res.status(404).json({ msg: "User tidak ditemukan" });
-    }
+    if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
 
     if (req.role !== "admin" && req.userUuid !== user.uuid) {
       return res.status(403).json({ msg: "Akses terlarang!" });
@@ -236,92 +264,93 @@ export const updateUsers = async (req, res) => {
       username, email, password,
       nama_lengkap, gelar, jabatan, masa_jabat,
       instansi, linkedin, google_scholar, scopus, sinta,
+      role, status
     } = req.body;
+
+    const restrictedRoles = ["admin", "humas", "ketua_forum"];
+    const anggotaLama = user.anggotas && user.anggotas.length > 0 ? user.anggotas[0] : null;
+
+    if (req.role !== "admin" && !restrictedRoles.includes(user.role)) {
+      if (!nama_lengkap) return res.status(400).json({ msg: "Nama lengkap wajib diisi untuk Anggota" });
+      if (!gelar) return res.status(400).json({ msg: "Gelar wajib diisi untuk Anggota" });
+      if (!jabatan) return res.status(400).json({ msg: "Jabatan wajib diisi untuk Anggota" });
+      if (!masa_jabat) return res.status(400).json({ msg: "Masa jabat wajib diisi untuk Anggota" });
+      if (!instansi) return res.status(400).json({ msg: "Instansi wajib diisi untuk Anggota" });
+    }
 
     let hashPassword = user.password;
     if (password && password !== "") {
       hashPassword = await argon2.hash(password);
     }
 
-    const updateData = {
-      username,
-      email,
-      password: hashPassword,
-    };
-
-    if (req.role === "admin") {
-      updateData.role = req.body.role;
-      updateData.status = req.body.status;
-    }
-
-    await Users.update(updateData, {
-      where: { uuid: user.uuid },
-    });
-
-    const anggota = user.anggota;
-    let fileName = anggota ? anggota.image : null;
-
+    let fileName = anggotaLama ? anggotaLama.image : null;
     if (req.files && req.files.file) {
       const file = req.files.file;
       const ext = path.extname(file.name).toLowerCase();
       const allowedType = [".png", ".jpg", ".jpeg"];
 
-      if (!allowedType.includes(ext)) {
-        return res.status(422).json({ msg: "Format harus JPG, PNG, atau JPEG" });
-      }
-      if (file.data.length > 5000000) {
-        return res.status(422).json({ msg: "Ukuran foto maksimal 5 MB" });
-      }
+      if (!allowedType.includes(ext)) return res.status(422).json({ msg: "Format harus JPG, PNG, atau JPEG" });
+      if (file.data.length > 5000000) return res.status(422).json({ msg: "Ukuran foto maksimal 5 MB" });
 
       const newFileName = file.md5 + "-" + Date.now() + ext;
-
+      
       if (!fs.existsSync("./storage/anggota")) {
         fs.mkdirSync("./storage/anggota", { recursive: true });
       }
 
       await file.mv(`./storage/anggota/${newFileName}`);
 
-      if (fileName && fileName !== newFileName) {
-        const oldPath = `./storage/anggota/${fileName}`;
-        if (fs.existsSync(oldPath)) {
-          fs.unlinkSync(oldPath);
-        }
+      if (fileName && fs.existsSync(`./storage/anggota/${fileName}`)) {
+        fs.unlinkSync(`./storage/anggota/${fileName}`);
       }
-
       fileName = newFileName;
     }
 
-    const url = fileName
-      ? `${req.protocol}://${req.get("host")}/storage/anggota/${fileName}`
-      : anggota?.url;
+    const url = fileName 
+      ? `${req.protocol}://${req.get("host")}/storage/anggota/${fileName}` 
+      : (anggotaLama ? anggotaLama.url : null);
 
-    const anggotaUpdateData = {
-      nama_lengkap,
-      gelar,
-      jabatan,
-      masa_jabat,
-      instansi,
-      linkedin,
-      google_scholar,
-      scopus,
-      sinta,
+    const updateDataUser = {
+      username: username || user.username,
+      email: email || user.email,
+      password: hashPassword,
     };
 
-    // Hanya update image & url kalau ada fileName-nya
-    if (fileName) {
-      anggotaUpdateData.image = fileName;
-      anggotaUpdateData.url = url;
+    if (req.role === "admin") {
+      updateDataUser.role = role || user.role;
+      updateDataUser.status = status || user.status;
     }
-    await Anggotas.update(
-      anggotaUpdateData,
-      {
-        where: { users_uuid: user.uuid },
-      }
-    );
 
-    res.status(200).json({ msg: "User berhasil diupdate" });
+    const updateDataAnggota = {
+      nama_lengkap: nama_lengkap || (anggotaLama ? anggotaLama.nama_lengkap : ""),
+      gelar: gelar || (anggotaLama ? anggotaLama.gelar : ""),
+      jabatan: jabatan || (anggotaLama ? anggotaLama.jabatan : ""),
+      masa_jabat: masa_jabat || (anggotaLama ? anggotaLama.masa_jabat : ""),
+      instansi: instansi || (anggotaLama ? anggotaLama.instansi : ""),
+      linkedin: linkedin || (anggotaLama ? anggotaLama.linkedin : ""),
+      google_scholar: google_scholar || (anggotaLama ? anggotaLama.google_scholar : ""),
+      scopus: scopus || (anggotaLama ? anggotaLama.scopus : ""),
+      sinta: sinta || (anggotaLama ? anggotaLama.sinta : ""),
+      image: fileName,
+      url: url,
+      users_uuid: user.uuid
+    };
+
+    await Users.update(updateDataUser, { where: { uuid: user.uuid } });
+
+    if (!anggotaLama) {
+      await Anggotas.create(updateDataAnggota);
+    } else {
+      await Anggotas.update(updateDataAnggota, { where: { users_uuid: user.uuid } });
+    }
+
+    res.status(200).json({ msg: "Profil berhasil diperbarui!" });
 
   } catch (error) {
+    if (error.name === 'SequelizeValidationError') {
+      const errors = error.errors.map(err => err.message);
+      return res.status(400).json({ msg: errors.join(", ") });
+    }
     res.status(500).json({ msg: error.message });
   }
 };
@@ -356,7 +385,7 @@ export const deleteUsers = async (req, res) => {
 export const rejectUserByAdmin = async (req, res) => {
   try {
 
-    if (req.role !== "admin") {
+    if (req.role !== "admin" && req.role !== "ketua_forum") {
       return res.status(403).json({ msg: "Akses terlarang!" });
     }
 
@@ -379,7 +408,7 @@ export const rejectUserByAdmin = async (req, res) => {
 export const verifyUserByAdmin = async (req, res) => {
   try {
 
-    if (req.role !== "admin") {
+    if (req.role !== "admin" && req.role !== "ketua_forum") {
       return res.status(403).json({ msg: "Akses terlarang!" });
     }
 

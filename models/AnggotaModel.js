@@ -27,38 +27,23 @@ const Anggotas = db.define(
     },
     nama_lengkap: {
       type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
+      allowNull: true,
     },
     gelar: {
       type: DataTypes.STRING,
-      allowNull: false,
-        validate: {
-        notEmpty: true,
-      },
+      allowNull: true,
     },
     jabatan: {
       type: DataTypes.STRING,
-      allowNull: false,
-        validate: {
-        notEmpty: true,
-        },
+      allowNull: true,
     },
     masa_jabat: {
         type: DataTypes.STRING,
-        allowNull: false,
-        validate: {
-        notEmpty: true,
-        },
+        allowNull: true,
     },
     instansi: {
         type: DataTypes.STRING,
-        allowNull: false,
-        validate: {
-        notEmpty: true,
-        },
+        allowNull: true,
     },
     linkedin: {
         type: DataTypes.STRING,
@@ -78,17 +63,11 @@ const Anggotas = db.define(
     },
     image: {
         type: DataTypes.STRING,
-        allowNull: false,
-        validate: {
-            notEmpty: true,
-        },
+        allowNull: true,
     },
     url: {
         type: DataTypes.STRING,
-        allowNull: false,
-        validate: {
-            notEmpty: true,
-        },
+        allowNull: true,
     }
   },
   {

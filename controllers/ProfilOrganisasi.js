@@ -21,7 +21,7 @@ export const getProfilOrganisasis = async (req, res) => {
       attributes: ["uuid", "nama_organisasi", "deskripsi_organisasi", "image", "url", "status", "createdAt"],
       include: [{
         model: Users,
-        attributes: ["username", "role"]
+        attributes: ["username"]
       }]
     });
 
@@ -65,80 +65,58 @@ export const getProfilOrganisasiImage = async (req, res) => {
 };
 
 export const createProfilOrganisasi = async (req, res) => {
-  const { nama_organisasi, deskripsi_organisasi } = req.body || {};
-
-  if (req.files === null)
-    return res.status(400).json({ msg: "Tidak ada gambar yang diunggah!" });
-  
-  if (!nama_organisasi || nama_organisasi === "") {
-    return res.status(400).json({
-      msg: "Nama organisasi wajib diisi",
-    });
-  }
-
-  if (!deskripsi_organisasi || deskripsi_organisasi === "") {
-    return res.status(400).json({
-      msg: "Deskripsi organisasi wajib diisi",
-    });
-  }
-  const existingProfil = await ProfilOrganisasi.findOne();
-
-    if (existingProfil) {
+  try {
+    const countProfil = await ProfilOrganisasi.count();
+    if (countProfil > 0) {
       return res.status(400).json({
-        msg: "Profil organisasi sudah ada, tidak bisa membuat lebih dari satu",
+        msg: "Profil organisasi sudah ada! Anda hanya diperbolehkan membuat satu data. Silakan gunakan fitur Update jika ingin mengubah informasi.",
       });
     }
-  const file = req.files.file;
 
-  const fileSize = file.data.length;
-  const ext = path.extname(file.name).toLowerCase();
-  const allowedType = [".png", ".jpg", ".jpeg"];
+    const { nama_organisasi, deskripsi_organisasi } = req.body || {};
+    if (!nama_organisasi || !deskripsi_organisasi) {
+      return res.status(400).json({ msg: "Nama dan Deskripsi organisasi wajib diisi" });
+    }
 
-  if (!allowedType.includes(ext)) {
-    return res.status(422).json({
-      msg: "Format gambar tidak valid! Gunakan JPG, JPEG, atau PNG",
+    if (!req.files || !req.files.file) {
+      return res.status(400).json({ msg: "Tidak ada gambar yang diunggah!" });
+    }
+
+    const file = req.files.file;
+    const fileSize = file.data.length;
+    const ext = path.extname(file.name).toLowerCase();
+    const allowedType = [".png", ".jpg", ".jpeg"];
+
+    if (!allowedType.includes(ext)) {
+      return res.status(422).json({ msg: "Format gambar harus JPG, JPEG, atau PNG" });
+    }
+
+    if (fileSize > 5000000) {
+      return res.status(422).json({ msg: "Ukuran gambar maksimal 5 MB" });
+    }
+
+    const fileName = file.md5 + "-" + Date.now() + ext;
+    const uploadPath = `./storage/profil/${fileName}`;
+    const url = `${req.protocol}://${req.get("host")}/storage/profil/${fileName}`;
+
+    await file.mv(uploadPath);
+
+    const newProfilOrganisasi = await ProfilOrganisasi.create({
+      nama_organisasi: nama_organisasi,
+      deskripsi_organisasi: deskripsi_organisasi,
+      image: fileName,
+      url: url,
+      users_uuid: req.userUuid,
     });
-  }
 
-  if (fileSize > 5000000) {
-    return res.status(422).json({
-      msg: "Ukuran gambar maksimal 5 MB",
+    res.status(201).json({
+      msg: "Profil organisasi berhasil dibuat",
+      data: newProfilOrganisasi
     });
+
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
   }
-
-  const fileName = file.md5 + "-" + Date.now() + ext;
-  const uploadPath = `./storage/profil/${fileName}`;
-  const url = `${req.protocol}://${req.get("host")}/storage/profil/${fileName}`;
-
-  file.mv(uploadPath, async (err) => {
-    if (err) {
-      return res.status(500).json({ msg: err.message });
-    }
-    try {
-      const newProfilOrganisasi = await ProfilOrganisasi.create({
-        nama_organisasi: nama_organisasi,
-        deskripsi_organisasi: deskripsi_organisasi,
-        image: fileName,
-        url: url,
-        users_uuid: req.userUuid,
-      });
-
-      res.status(201).json({
-        msg: "Profil organisasi berhasil dibuat",
-        data: newProfilOrganisasi
-      });
-    } catch (error) {
-      if (error.name === "SequelizeValidationError") {
-        return res.status(400).json({
-          msg: "Data tidak valid, pastikan semua field terisi dengan benar",
-        });
-      }
-
-      res.status(500).json({
-        msg: error.message,
-      });
-    }
-  });
 };
 export const updateProfilOrganisasi = async (req, res) => {
         try {
