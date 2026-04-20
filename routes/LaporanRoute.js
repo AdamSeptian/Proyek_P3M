@@ -19,6 +19,7 @@ import {
     onlyVerified,
     adminOrSelf
 } from "../middleware/AuthUser.js";
+import Laporans from "../models/LaporanModel.js";
 
 const router = express.Router();
 
@@ -30,9 +31,9 @@ router.get("/laporans/:uuid", optionalVerifyUser, getLaporanByUuid);
 
 router.post("/laporans", verifyUser, adminOrKetuaForum, createLaporan);
 
-router.patch("/laporans/:uuid", verifyUser, adminOrKetuaForum, adminOrSelf, updateLaporan);
+router.patch("/laporans/:uuid", verifyUser, adminOrKetuaForum, adminOrSelf(Laporans), updateLaporan);
 
-router.delete("/laporans/:uuid", verifyUser, adminOrKetuaForum, adminOrSelf, deleteLaporan);
+router.delete("/laporans/:uuid", verifyUser, adminOrKetuaForum, adminOrSelf(Laporans), deleteLaporan);
 
 router.patch("/laporans/:uuid/verify", verifyUser, adminOnly, onlyVerified, verifyLaporanByAdmin);
 

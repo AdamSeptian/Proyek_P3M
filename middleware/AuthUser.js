@@ -80,9 +80,18 @@ export const adminOrAnggota = (req, res, next) => {
   next();
 };
 
-export const adminOrSelf = (req, res, next) => {
-  if (req.role !== "admin" && agenda.users_uuid !== req.userUuid) {
-    return res.status(403).json({ msg: "Akses terlarang!" });
-  }
-  next();
+export const adminOrSelf = (Model) => async (req, res, next) => {
+    try {
+        const data = await Model.findOne({ where: { uuid: req.params.uuid } });
+        if (!data) return res.status(404).json({ msg: "Data tidak ditemukan" });
+
+        if (req.role === "admin" || req.userUuid === data.users_uuid) {
+            req.tempData = data;
+            next();
+        } else {
+            return res.status(403).json({ msg: "Akses terlarang" });
+        }
+    } catch (error) {
+        res.status(500).json({ msg: error.message });
+    }
 };

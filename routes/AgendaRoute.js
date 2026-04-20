@@ -19,6 +19,7 @@ import {
     adminOnly,
     adminOrSelf
  } from "../middleware/AuthUser.js";
+import Agendas from "../models/AgendaModel.js";
 
 const router = express.Router();
 
@@ -30,9 +31,9 @@ router.get("/agendas/:uuid", optionalVerifyUser, getAgendaByUuid);
 
 router.post("/agendas", verifyUser, adminOrHumas, onlyVerified, createAgenda);
 
-router.patch("/agendas/:uuid", verifyUser, adminOrHumas, onlyVerified,adminOrSelf, updateAgenda);
+router.patch("/agendas/:uuid", verifyUser, adminOrHumas, onlyVerified,adminOrSelf(Agendas), updateAgenda);
 
-router.delete("/agendas/:uuid", verifyUser, adminOrHumas, onlyVerified, adminOrSelf, deleteAgenda);
+router.delete("/agendas/:uuid", verifyUser, adminOrHumas, onlyVerified, adminOrSelf(Agendas), deleteAgenda);
 
 router.patch("/agendas/:uuid/verify", verifyUser, adminOnly, onlyVerified, verifyAgendaByAdmin);
 

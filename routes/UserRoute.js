@@ -7,7 +7,9 @@ import {
   updateUsers,
   deleteUsers,
   verifyUserByAdmin,
-  rejectUserByAdmin
+  rejectUserByAdmin,
+  cancelVerifyUser,
+  cancelRejectUser
 } from "../controllers/Users.js";
 import { 
     verifyUser,
@@ -35,5 +37,9 @@ router.patch(
 
 router.patch(
   "/users/:uuid/reject", verifyUser, adminOrKetuaForum, onlyVerified, rejectUserByAdmin);
+
+router.patch("/users/:uuid/cancel-verify", verifyUser, adminOrKetuaForum, onlyVerified, cancelVerifyUser);
+
+router.patch("/users/:uuid/cancel-reject", verifyUser, adminOrKetuaForum, onlyVerified, cancelRejectUser);
 
 export default router;
