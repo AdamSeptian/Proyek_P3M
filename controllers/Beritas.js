@@ -32,7 +32,7 @@ export const getBeritas = async (req, res) => {
       include: [
         {
         model: Users,
-        attributes: ["username"]
+        attributes: ["uuid", "username"]
         },
         {
           model: Kategori,

@@ -29,7 +29,7 @@ export const getAgendas = async (req, res) => {
       attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "status", "file", "url", "createdAt"],
       include: [{
         model: Users,
-        attributes: ["username"]
+        attributes: ["uuid", "username"]
       }]
     });
 
@@ -205,46 +205,58 @@ export const updateAgenda = async (req, res) => {
                 msg: "Agenda yang sudah diverifikasi tidak dapat diubah"
             });
         }
+        let newStatus = agenda.status;
+
+        if (req.role !== "admin") {
+            newStatus = "pending";
+        } else {
+            newStatus = req.body.status || agenda.status;
+        }
 
         let fileName = agenda.file;
 
         if (req.files && req.files.file) {
-          const file = req.files.file;
-          const fileSize = file.data.length;
-          const ext = path.extname(file.name).toLowerCase();
-          const allowedType = ".pdf";
+            const file = req.files.file;
+            const fileSize = file.data.length;
+            const ext = path.extname(file.name).toLowerCase();
+            const allowedType = ".pdf";
 
-          if (!allowedType.includes(ext)) {
-              return res.status(422).json({ msg: "Format harus PDF" });
-          }
-          if (fileSize > 5000000) {
-              return res.status(422).json({ msg: "File harus kurang dari 5 MB" });
-          }
-          fileName = file.md5 + "_" + Date.now() + ext;
-          
-          await file.mv(`./storage/agenda/${fileName}`);
+            if (!allowedType.includes(ext)) {
+                return res.status(422).json({ msg: "Format harus PDF" });
+            }
+            if (fileSize > 5000000) {
+                return res.status(422).json({ msg: "File harus kurang dari 5 MB" });
+            }
+            fileName = file.md5 + "_" + Date.now() + ext;
+            
+            await file.mv(`./storage/agenda/${fileName}`);
 
-          const oldPath = `./storage/agenda/${agenda.file}`;
-          if (agenda.file !== fileName && fs.existsSync(oldPath)) {
-              fs.unlinkSync(oldPath);
-          }
-      }
+            const oldPath = `./storage/agenda/${agenda.file}`;
+            if (agenda.file !== fileName && fs.existsSync(oldPath)) {
+                fs.unlinkSync(oldPath);
+            }
+        }
 
         const url = `${req.protocol}://${req.get("host")}/storage/agenda/${fileName}`;
 
         await Agendas.update({
-            nama_kegiatan: req.body.nama_kegiatan,
-            tuan_rumah: req.body.tuan_rumah,
-            jadwal: req.body.jadwal,
+            nama_kegiatan: req.body.nama_kegiatan || agenda.nama_kegiatan,
+            tuan_rumah: req.body.tuan_rumah || agenda.tuan_rumah,
+            jadwal: req.body.jadwal || agenda.jadwal,
             file: fileName,
-            url: url
+            url: url,
+            status: newStatus
         }, {
             where: {
                 uuid: req.params.uuid,
             },
         });
 
-        res.status(200).json({ msg: "Agenda berhasil diupdate" });
+        res.status(200).json({ 
+            msg: agenda.status === "rejected" 
+                ? "Agenda telah diperbaiki dan diajukan ulang" 
+                : "Agenda berhasil diupdate" 
+        });
 
     } catch (error) {
         res.status(500).json({ msg: error.message });

@@ -12,7 +12,8 @@ import {
     verifyUser,
     adminOnly,
     optionalVerifyUser,
-    onlyVerified
+    onlyVerified,
+    adminOrHumas
 } from "../middleware/AuthUser.js"
 
 const router = express.Router();
@@ -20,8 +21,8 @@ const router = express.Router();
 router.get('/tag', optionalVerifyUser, getAllTag);
 router.get('/tag/:uuid', optionalVerifyUser, getTagById);
 router.get('/tag/:uuid/berita', getBeritaByTag);
-router.post('/tag', verifyUser, onlyVerified, adminOnly, createTag);
-router.patch('/tag/:uuid', verifyUser, onlyVerified, adminOnly, updateTag);
-router.delete('/tag/:uuid', verifyUser, onlyVerified, adminOnly, deleteTag);
+router.post('/tag', verifyUser, onlyVerified, adminOrHumas, createTag);
+router.patch('/tag/:uuid', verifyUser, onlyVerified, adminOrHumas, updateTag);
+router.delete('/tag/:uuid', verifyUser, onlyVerified, adminOrHumas, deleteTag);
 
 export default router;

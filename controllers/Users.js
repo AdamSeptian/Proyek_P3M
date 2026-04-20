@@ -16,7 +16,13 @@ export const getUsers = async (req, res) => {
     if (req.userUuid) {
       if (req.role === "admin") {
         whereCondition = {};
-      } else {
+      } else if (req.role === "ketua_forum") {
+        whereCondition = {
+          [Op.or]: [
+            { role: "anggota" }
+          ]
+        };
+      }else {
         whereCondition = {
           [Op.or]: [
             { status: "verified" },
@@ -59,9 +65,10 @@ export const getUserImage = async (req, res) => {
         }
         if (anggota.status !== "verified") {
             const isAdmin = req.role === "admin";
+            const isKetuaForun = req.role === "ketua_forum";
             const isOwner = req.userUuid === anggota.users_uuid;
 
-            if (!isAdmin && !isOwner) {
+            if (!isAdmin && !isOwner && !isKetuaForun) {
                 return res.status(403).json({ 
                     msg: "Akses ditolak." 
                 });
@@ -423,6 +430,44 @@ export const verifyUserByAdmin = async (req, res) => {
 
     res.status(200).json({ msg: "User berhasil diverifikasi" });
 
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+export const cancelVerifyUser = async (req, res) => {
+  try {
+    const user = await Users.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
+
+    await Users.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Verifikasi dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+export const cancelRejectUser = async (req, res) => {
+  try {
+    const user = await Users.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!user) return res.status(404).json({ msg: "User tidak ditemukan" });
+
+    await Users.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Penolakan dibatalkan, status kembali ke Pending" });
   } catch (error) {
     res.status(500).json({ msg: error.message });
   }

@@ -12,7 +12,8 @@ import {
     verifyUser,
     adminOnly,
     optionalVerifyUser,
-    onlyVerified
+    onlyVerified,
+    adminOrHumas
 } from "../middleware/AuthUser.js"
 
 const router = express.Router();
@@ -20,8 +21,8 @@ const router = express.Router();
 router.get('/kategori', optionalVerifyUser, getAllKategori);
 router.get('/kategori/:uuid', optionalVerifyUser, getKategoriById);
 router.get('/kategori/:uuid/berita', getBeritaByKategori);
-router.post('/kategori', verifyUser, onlyVerified, adminOnly, createKategori);
-router.patch('/kategori/:uuid', verifyUser, onlyVerified, adminOnly, updateKategori);
-router.delete('/kategori/:uuid', verifyUser, onlyVerified, adminOnly, deleteKategori);
+router.post('/kategori', verifyUser, onlyVerified, adminOrHumas, createKategori);
+router.patch('/kategori/:uuid', verifyUser, onlyVerified, adminOrHumas, updateKategori);
+router.delete('/kategori/:uuid', verifyUser, onlyVerified, adminOrHumas, deleteKategori);
 
 export default router;
