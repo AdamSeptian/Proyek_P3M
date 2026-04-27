@@ -1,6 +1,10 @@
 import Pengurus from "../models/PengurusModel.js";
 import path from "path";
 import fs from "fs";
+import { Op } from "sequelize";
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getPenguruses = async (req, res) => {
       try {
@@ -14,6 +18,39 @@ export const getPenguruses = async (req, res) => {
     res.status(500).json({ msg: error.message });
   }
 }
+
+export const getPengurusImage = async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(__dirname, "../storage/pengurus", filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ msg: "Gambar tidak ditemukan" });
+        }
+
+        const pengurus = await Pengurus.findOne({
+            where: { image: filename }
+        });
+
+        if (!pengurus) {
+            return res.status(404).json({ msg: "Data pengurus tidak ditemukan" });
+        }
+        if (pengurus.status !== "verified") {
+            const isAdmin = req.role === "admin";
+            const isKetuaForum = req.role === "ketua_forum";
+
+            if (!isAdmin && !isKetuaForum) {
+                return res.status(403).json({ 
+                    msg: "Akses ditolak." 
+                });
+            }
+        }
+
+        res.sendFile(filePath);
+    } catch (error) {
+        res.status(500).json({ msg: error.message });
+    }
+};
 
 export const getPengurusByUuid = async (req, res) => {
       try {
@@ -143,14 +180,9 @@ export const updatePengurus = async (req, res) => {
           if (fileSize > 5000000) {
               return res.status(422).json({ msg: "Image harus kurang dari 5 MB" });
           }
-
-          // ✅ Generate nama unik
           fileName = file.md5 + "_" + Date.now() + ext;
 
-          // ✅ Upload dulu
           await file.mv(`./storage/pengurus/${fileName}`);
-
-          // ✅ Baru hapus yang lama (dan hanya kalau namanya beda)
           const oldPath = `./storage/pengurus/${pengurus.image}`;
           if (pengurus.image !== fileName && fs.existsSync(oldPath)) {
               fs.unlinkSync(oldPath);

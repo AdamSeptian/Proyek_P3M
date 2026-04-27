@@ -4,23 +4,29 @@ import {
     getPengurusByUuid,
     createPengurus,
     updatePengurus,
-    deletePengurus
+    deletePengurus,
+    getPengurusImage
 } from "../controllers/Pengurus.js";
 import {
     verifyUser,
-    adminOnly
+    adminOnly,
+    onlyVerified,
+    adminOrKetuaForum,
+    optionalVerifyUser
 } from "../middleware/AuthUser.js";
 
 const router = express.Router();
 
 router.get("/pengurus", getPenguruses);
 
-router.get("/pengurus/:uuid", getPengurusByUuid);
+router.get("/storage/pengurus/:filename", optionalVerifyUser, getPengurusImage);
 
-router.post("/pengurus", verifyUser, adminOnly, createPengurus);
+router.get("/pengurus/:uuid", verifyUser, adminOrKetuaForum, onlyVerified, getPengurusByUuid);
 
-router.patch("/pengurus/:uuid", verifyUser, adminOnly, updatePengurus);
+router.post("/pengurus", verifyUser, adminOrKetuaForum, onlyVerified, createPengurus);
 
-router.delete("/pengurus/:uuid", verifyUser, adminOnly, deletePengurus);
+router.patch("/pengurus/:uuid", verifyUser, adminOrKetuaForum, onlyVerified, updatePengurus);
+
+router.delete("/pengurus/:uuid", verifyUser, adminOrKetuaForum, onlyVerified, deletePengurus);
 
 export default router;

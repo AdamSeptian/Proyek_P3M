@@ -8,27 +8,34 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getProfilOrganisasis = async (req, res) => {
       try {
-    let whereCondition = {};
+        let whereCondition = {};
+        
+            if (req.role === "admin" || req.role === "ketua_forum") {
+            whereCondition = {};
+            } else if (req.role === "humas") {
+            whereCondition = {
+                [Op.or]: [
+                { status: "verified" },
+                { users_uuid: req.userUuid }
+                ]
+            };
+            } else {
+            whereCondition = { status: "verified" };
+            }
 
-    if (req.role === "admin") {
-      whereCondition = {};
-    } else {
-      whereCondition = { status: "verified" };
+        const response = await ProfilOrganisasi.findAll({
+        where: whereCondition,
+        attributes: ["uuid", "nama_organisasi", "deskripsi_organisasi", "image", "url", "status", "createdAt"],
+        include: [{
+            model: Users,
+            attributes: ["username"]
+        }]
+        });
+
+        res.status(200).json(response);
+    } catch (error) {
+        res.status(500).json({ msg: error.message });
     }
-
-    const response = await ProfilOrganisasi.findAll({
-      where: whereCondition,
-      attributes: ["uuid", "nama_organisasi", "deskripsi_organisasi", "image", "url", "status", "createdAt"],
-      include: [{
-        model: Users,
-        attributes: ["username"]
-      }]
-    });
-
-    res.status(200).json(response);
-  } catch (error) {
-    res.status(500).json({ msg: error.message });
-  }
 }
 
 export const getProfilOrganisasiImage = async (req, res) => {
@@ -205,7 +212,7 @@ export const deleteProfilOrganisasi = async (req, res) => {
         }
 }
 
-export const verifyProfilOrganisasiByAdmin = async (req, res) => {
+export const verifyProfilOrganisasi = async (req, res) => {
         try {
             const profilOrganisasi = await ProfilOrganisasi.findOne({
             where: {
@@ -229,7 +236,7 @@ export const verifyProfilOrganisasiByAdmin = async (req, res) => {
     }
 }
 
-export const rejectProfilOrganisasiByAdmin = async (req, res) => {
+export const rejectProfilOrganisasi = async (req, res) => {
         try {
         const profilOrganisasi = await ProfilOrganisasi.findOne({
             where: {
@@ -252,3 +259,41 @@ export const rejectProfilOrganisasiByAdmin = async (req, res) => {
         res.status(500).json({ msg: error.message });
     }
 }
+
+export const cancelVerifyProfilOrganisasi = async (req, res) => {
+  try {
+    const profilOrganisasi = await ProfilOrganisasi.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!profilOrganisasi) return res.status(404).json({ msg: "Profil organisasi tidak ditemukan" });
+
+    await ProfilOrganisasi.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Verifikasi dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+export const cancelRejectProfilOrganisasi = async (req, res) => {
+  try {
+    const profilOrganisasi = await ProfilOrganisasi.findOne({
+      where: { uuid: req.params.uuid }
+    });
+
+    if (!profilOrganisasi) return res.status(404).json({ msg: "Profil organisasi tidak ditemukan" });
+
+    await ProfilOrganisasi.update(
+      { status: "pending" },
+      { where: { uuid: req.params.uuid } }
+    );
+
+    res.status(200).json({ msg: "Penolakan dibatalkan, status kembali ke Pending" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
