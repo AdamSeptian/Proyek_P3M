@@ -51,30 +51,33 @@ export const getUserImage = async (req, res) => {
     try {
         const { filename } = req.params;
         const filePath = path.join(__dirname, "../storage/anggota", filename);
-
         if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ msg: "anggota Tidak Ditemukan" });
+            return res.status(404).json({ msg: "File Gambar Tidak Ditemukan" });
         }
-
         const anggota = await Anggotas.findOne({
-            where: { image: filename }
+            where: { image: filename },
+            include: [{
+                model: Users,
+                as: 'user',
+                attributes: ['status', 'role', 'uuid']
+            }]
         });
 
         if (!anggota) {
-            return res.status(404).json({ msg: "Data anggota tidak ditemukan" });
+            return res.status(404).json({ msg: "Data anggota tidak ditemukan di database" });
         }
-        if (anggota.status !== "verified") {
+        if (anggota.user?.status !== "verified") {
             const isAdmin = req.role === "admin";
-            const isKetuaForun = req.role === "ketua_forum";
+            const isKetuaForum = req.role === "ketua_forum";
             const isOwner = req.userUuid === anggota.users_uuid;
-
-            if (!isAdmin && !isOwner && !isKetuaForun) {
+            if (!isAdmin && !isOwner && !isKetuaForum) {
                 return res.status(403).json({ 
-                    msg: "Akses ditolak." 
+                    msg: "Akses ditolak. Profil ini masih dalam peninjauan." 
                 });
             }
         }
 
+        // 4. Kirim file jika lolos pengecekan
         res.sendFile(filePath);
     } catch (error) {
         res.status(500).json({ msg: error.message });

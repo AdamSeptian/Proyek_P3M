@@ -26,11 +26,12 @@ export const getAgendas = async (req, res) => {
 
     const response = await Agendas.findAll({
       where: whereCondition,
-      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "status", "file", "url", "createdAt"],
+      attributes: ["uuid", "nama_kegiatan", "tuan_rumah", "jadwal", "status", "file", "url", "createdAt", "updatedAt"],
       include: [{
         model: Users,
         attributes: ["uuid", "username"]
-      }]
+      }],
+      order: [['updatedAt', 'DESC']]
     });
 
     res.status(200).json(response);

@@ -28,7 +28,7 @@ export const getBeritas = async (req, res) => {
 
     const response = await Beritas.findAll({
       where: whereCondition,
-      attributes: ["uuid", "judul_berita", "isi_berita", "status", "image", "url", "createdAt"],
+      attributes: ["uuid", "judul_berita", "isi_berita", "status", "image", "url", "createdAt", "updatedAt"],
       include: [
         {
         model: Users,
@@ -44,7 +44,8 @@ export const getBeritas = async (req, res) => {
           attributes: ["nama_tag", "uuid"],
           through: { attributes: [] }
         }
-    ]
+      ],
+      order: [['updatedAt', 'DESC']]
     });
 
     res.status(200).json(response);

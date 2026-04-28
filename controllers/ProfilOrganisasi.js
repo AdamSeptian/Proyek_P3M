@@ -1,6 +1,7 @@
 import ProfilOrganisasi from "../models/ProfilOrganisasiModel.js";
 import Users from "../models/UserModel.js";
 import path from "path";
+import { Op } from "sequelize";
 import fs from "fs";
 import { fileURLToPath } from 'url';
 
@@ -25,7 +26,7 @@ export const getProfilOrganisasis = async (req, res) => {
 
         const response = await ProfilOrganisasi.findAll({
         where: whereCondition,
-        attributes: ["uuid", "nama_organisasi", "deskripsi_organisasi", "image", "url", "status", "createdAt"],
+        attributes: ["uuid", "nama_organisasi", "deskripsi_organisasi", "image", "url", "status", "createdAt", "updatedAt"],
         include: [{
             model: Users,
             attributes: ["username"]

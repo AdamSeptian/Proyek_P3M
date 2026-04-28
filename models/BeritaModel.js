@@ -38,7 +38,7 @@ const Beritas = db.define(
         },
     },
     isi_berita: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT('long'),
         allowNull: false,
         validate: {
             notEmpty: true,

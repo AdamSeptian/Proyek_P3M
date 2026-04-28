@@ -26,11 +26,12 @@ export const getLaporans = async (req, res) => {
      
          const response = await Laporans.findAll({
            where: whereCondition,
-           attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt"],
+           attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt", "updatedAt"],
            include: [{
              model: Users,
              attributes: ["uuid", "username"]
-           }]
+           }],
+           order: [['updatedAt', 'DESC']]
          });
      
          res.status(200).json(response);
@@ -88,7 +89,7 @@ export const getLaporanByUuid = async (req, res) => {
 
     const response = await Laporans.findOne({
       where: whereCondition,
-      attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt"],
+      attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt", "updatedAt"],
       include: [{
       model: Users,
       attributes: ["username"]

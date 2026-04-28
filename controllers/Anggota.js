@@ -8,10 +8,26 @@ export const getAnggotas = async (req, res) => {
     try {
         let userFilter = {};
 
-        if (req.role === "admin") {
-            userFilter = {};
-        } else {
-            userFilter = { status: "verified" };
+        // 1. Jika TIDAK LOGIN atau LOGIN SEBAGAI ANGGOTA
+        if (!req.role || req.role === "anggota") {
+            userFilter = {
+                [Op.and]: [
+                    { status: "verified" },
+                    {
+                        [Op.or]: [
+                            // Jika login, bisa lihat punya sendiri (meskipun nanti dia diedit jadi bukan role anggota)
+                            ...(req.userUuid ? [{ uuid: req.userUuid }] : []), 
+                            // Publik & Anggota hanya bisa lihat user lain yang rolenya 'anggota'
+                            { role: "anggota" }
+                        ]
+                    }
+                ]
+            };
+        } 
+        // 2. Jika LOGIN SEBAGAI ADMIN atau KETUA
+        else if (req.role === "admin" || req.role === "ketua_forum") {
+            // Bisa lihat semua yang sudah verified (Admin biasanya mau lihat semuanya)
+            userFilter = { status: "verified" }; 
         }
 
         const response = await Anggotas.findAll({
@@ -21,7 +37,7 @@ export const getAnggotas = async (req, res) => {
                 where: userFilter,
                 required: true
             }],
-            order: [['createdAt', 'DESC']]
+            order: [['updatedAt', 'DESC']]
         });
 
         res.status(200).json(response);

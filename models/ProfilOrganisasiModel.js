@@ -36,7 +36,7 @@ const ProfilOrganisasi = db.define(
         },
     },
     deskripsi_organisasi: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT('long'),
         allowNull: false,
         validate: {
             notEmpty: true,

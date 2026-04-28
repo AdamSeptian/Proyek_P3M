@@ -6,7 +6,8 @@ import { Op } from "sequelize";
 export const getAllKategori = async (req, res) => {
     try {
         const response = await Kategori.findAll({
-            attributes: ['uuid', 'nama_kategori']
+            attributes: ['uuid', 'nama_kategori'],
+            order: [['updatedAt', 'DESC']]
         });
         res.status(200).json(response);
     } catch (error) {
@@ -23,7 +24,7 @@ export const getBeritaByKategori = async (req, res) => {
             attributes: ['uuid', 'nama_kategori'],
             include: [{
                 model: Beritas,
-                attributes: ["uuid", "judul_berita", "isi_berita", "status", "image", "url", "createdAt"],
+                attributes: ["uuid", "judul_berita", "isi_berita", "status", "image", "url", "createdAt", "updatedAt"],
                 through: { attributes: [] },
                 include: [{
                     model: Users,
