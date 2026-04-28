@@ -10,7 +10,8 @@ export const getPenguruses = async (req, res) => {
       try {
 
     const response = await Pengurus.findAll({
-      attributes: ["uuid", "nama_lengkap", "jabatan", "instansi", "image", "url", "createdAt"],
+      attributes: ["uuid", "nama_lengkap", "jabatan", "instansi", "image", "url", "createdAt", "updatedAt"],
+      order: [['updatedAt', 'DESC']]
     });
 
     res.status(200).json(response);
@@ -35,17 +36,6 @@ export const getPengurusImage = async (req, res) => {
         if (!pengurus) {
             return res.status(404).json({ msg: "Data pengurus tidak ditemukan" });
         }
-        if (pengurus.status !== "verified") {
-            const isAdmin = req.role === "admin";
-            const isKetuaForum = req.role === "ketua_forum";
-
-            if (!isAdmin && !isKetuaForum) {
-                return res.status(403).json({ 
-                    msg: "Akses ditolak." 
-                });
-            }
-        }
-
         res.sendFile(filePath);
     } catch (error) {
         res.status(500).json({ msg: error.message });
@@ -58,7 +48,7 @@ export const getPengurusByUuid = async (req, res) => {
       where: {
         uuid: req.params.uuid
       },
-      attributes: ["uuid", "nama_lengkap", "jabatan", "instansi", "image", "url", "createdAt"],
+      attributes: ["uuid", "nama_lengkap", "jabatan", "instansi", "image", "url", "createdAt", "updatedAt"],
     });
 
     if (!response) {
