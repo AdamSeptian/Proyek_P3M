@@ -38,6 +38,7 @@ export const getUsers = async (req, res) => {
       include: {
         model: Anggotas,
       },
+      order: [['updatedAt', 'DESC']]
     });
 
     res.status(200).json(users);
