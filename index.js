@@ -15,6 +15,7 @@ import LaporanRoute from "./routes/LaporanRoute.js";
 import AgendaRoute from "./routes/AgendaRoute.js";
 import PengurusRoute from "./routes/PengurusRoute.js";
 import TagRoute from "./routes/TagRoute.js";
+import LandingPageRoute from "./routes/LandingPageRoute.js";
 import axios from "axios";
 
 dotenv.config();
@@ -66,12 +67,10 @@ app.use(ProfilOrganisasiRoute);
 app.use(LaporanRoute);
 app.use(AgendaRoute);
 app.use(PengurusRoute);
+app.use(LandingPageRoute);
 app.get('/api/kampus', async (req, res) => {
     try {
-        // Mengambil data dari API luar
         const response = await axios.get('http://universities.hipolabs.com/search?country=Indonesia');
-        
-        // Kirim data ke frontend
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ message: 'Gagal mengambil data kampus', error: error.message });
@@ -108,6 +107,6 @@ const PORT = process.env.PORT || process.env.APP_PORT || 5000;
     console.error("Failed to connect database:", error);
   }
 })();
-// (async () => {
-//   await db.sync({alter: true});
-// })();
+(async () => {
+  await db.sync({alter: true});
+})();
