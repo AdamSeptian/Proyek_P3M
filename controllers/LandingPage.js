@@ -90,43 +90,86 @@ export const getUploadedImages = async (req, res) => {
 
 export const updateLandingData = async (req, res) => {
   try {
-    const { hero, tradition, footer } = req.body;
+    const { hero, tradition, footer, tempDeletedFiles } = req.body;
 
-    // --- VALIDASI MAKSIMAL 5 SLIDE ---
-    if (hero && hero.slides && Array.isArray(hero.slides)) {
-      if (hero.slides.length > 5) {
-        return res.status(400).json({ 
-          success: false, 
-          msg: "Batas maksimal hero slide adalah 5 gambar." 
-        });
-      }
+    if (hero?.slides?.length > 5) {
+      return res.status(400).json({ success: false, msg: "Maksimal 5 slide." });
     }
-    // ---------------------------------
 
-    // Gunakan findOrCreate: Cari data 'home', kalau ga ada buat baru
-    const [landing, created] = await LandingPage.findOrCreate({
-      where: { slug: "home" },
-      defaults: {
-        hero: hero || { slides: [] },
-        tradition: tradition || { items: [] },
-        footer: footer || { contacts: [], addresses: [] }
-      }
-    });
-
-    // Jika data sudah ada, maka kita update
-    if (!created) {
-      await landing.update({
-        hero: hero || landing.hero,
-        tradition: tradition || landing.tradition,
-        footer: footer || landing.footer
+    if (tempDeletedFiles && Array.isArray(tempDeletedFiles)) {
+      tempDeletedFiles.forEach((filePath) => {
+        if (filePath) {
+          const fullPath = path.join(process.cwd(), "storage", filePath);
+          if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+            console.log("File sampah dihapus:", filePath);
+          }
+        }
       });
     }
 
-    res.status(200).json({ 
-      success: true, 
-      msg: "Landing page berhasil diperbarui" 
-    });
+    const oldLanding = await LandingPage.findOne({ where: { slug: "home" } });
+
+    if (oldLanding) {
+      // 1. Ambil data lama & baru (pastikan diparse jika masih string)
+      const parseData = (d) => (typeof d === 'string' ? JSON.parse(d) : d);
+      
+      const oldHero = parseData(oldLanding.hero);
+      const oldTradition = parseData(oldLanding.tradition);
+      
+      const oldHeroSlides = oldHero?.slides || [];
+      const oldTraditionImg = oldTradition?.image;
+
+      const newHeroSlides = hero?.slides || [];
+      const newTraditionImg = tradition?.image;
+
+      // 2. Fungsi Helper untuk hapus file agar tidak berulang
+      const deleteFile = (relativePath) => {
+        if (!relativePath) return;
+        // Kita arahkan tepat ke folder storage dari posisi controllers
+        const absolutePath = path.resolve(__dirname, "../../backend/storage", relativePath); 
+        // ATAU gunakan ini jika folder storage ada di root project:
+        const rootPath = path.join(process.cwd(), "storage", relativePath);
+
+        if (fs.existsSync(rootPath)) {
+          fs.unlinkSync(rootPath);
+          console.log("File dihapus:", rootPath);
+        } else {
+          console.log("File tidak ditemukan untuk dihapus:", rootPath);
+        }
+      };
+
+      // 3. Cek Slide Hero yang dihapus
+      oldHeroSlides.forEach((oldSlide) => {
+        const isStillUsed = newHeroSlides.some(newSlide => newSlide.image === oldSlide.image);
+        if (!isStillUsed) {
+          deleteFile(oldSlide.image);
+        }
+      });
+
+      // 4. Cek Gambar Tradition yang diganti
+      if (oldTraditionImg && oldTraditionImg !== newTraditionImg) {
+        deleteFile(oldTraditionImg);
+      }
+
+      // 5. Update Database
+      await oldLanding.update({
+        hero: hero || oldLanding.hero,
+        tradition: tradition || oldLanding.tradition,
+        footer: footer || oldLanding.footer
+      });
+    } else {
+      await LandingPage.create({
+        slug: "home",
+        hero: hero || { slides: [] },
+        tradition: tradition || { items: [] },
+        footer: footer || { contacts: [], addresses: [] }
+      });
+    }
+
+    res.status(200).json({ success: true, msg: "Data diperbarui & storage dibersihkan" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ msg: error.message });
   }
 };
