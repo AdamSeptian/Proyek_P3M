@@ -11,15 +11,8 @@ export const getProfilOrganisasis = async (req, res) => {
       try {
         let whereCondition = {};
         
-            if (req.role === "admin" || req.role === "ketua_forum") {
+            if (req.role === "admin" || req.role === "ketua_forum" || req.role === "humas") {
             whereCondition = {};
-            } else if (req.role === "humas") {
-            whereCondition = {
-                [Op.or]: [
-                { status: "verified" },
-                { users_uuid: req.userUuid }
-                ]
-            };
             } else {
             whereCondition = { status: "verified" };
             }
@@ -58,8 +51,9 @@ export const getProfilOrganisasiImage = async (req, res) => {
         if (profil.status !== "verified") {
             const isAdmin = req.role === "admin";
             const isOwner = req.userUuid === profil.users_uuid;
+            const isHumas = req.role === "humas";
 
-            if (!isAdmin && !isOwner) {
+            if (!isAdmin && !isOwner && !isHumas) {
                 return res.status(403).json({ 
                     msg: "Akses ditolak." 
                 });
