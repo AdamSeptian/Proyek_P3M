@@ -1,6 +1,7 @@
 import Users from "../models/UserModel.js";
 import Anggotas from "../models/AnggotaModel.js";
 import argon2 from "argon2";
+import jwt from "jsonwebtoken";
 
 export const Login = async (req, res) => {
   try {
@@ -44,18 +45,20 @@ export const Login = async (req, res) => {
 
     if (!user)
       return res.status(404).json({ msg: "Pengguna tidak ditemukan!" });
-
     const match = await argon2.verify(user.password, req.body.password);
-
     if (!match)
       return res.status(400).json({ msg: "Password salah!" });
-
     req.session.userUuid = user.uuid;
     req.session.role = user.role;
     req.session.status = user.status;
-
+    const accessToken = jwt.sign(
+      { uuid: user.uuid, role: user.role, status: user.status },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: '1d' }
+    );
     res.status(200).json({
       msg: "Login berhasil",
+      accessToken: accessToken,
       uuid: user.uuid,
       username: user.username,
       email: user.email,
@@ -72,7 +75,9 @@ export const Login = async (req, res) => {
 };
 
 export const Me = async (req, res) => {
-  if (!req.session.userUuid) {
+  const userUuid = req.userUuid || req.session.userUuid;
+
+  if (!userUuid) {
     return res.status(401).json({ msg: "Silakan login ke akun Anda!" });
   }
 
@@ -80,15 +85,18 @@ export const Me = async (req, res) => {
     const user = await Users.findOne({
       attributes: ["uuid", "username", "email", "role", "status"],
       where: {
-        uuid: req.session.userUuid,
+        uuid: userUuid,
       },
       include: [{ model: Anggotas }],
     });
 
     if (!user) {
-      return req.session.destroy((err) => {
-        res.status(401).json({ msg: "Akun sudah tidak aktif atau tidak ditemukan. Silakan login kembali." });
-      });
+      if (req.session) {
+        return req.session.destroy(() => {
+          res.status(401).json({ msg: "Akun sudah tidak aktif atau tidak ditemukan." });
+        });
+      }
+      return res.status(401).json({ msg: "Akun sudah tidak aktif atau tidak ditemukan." });
     }
 
     res.status(200).json(user);
@@ -99,15 +107,15 @@ export const Me = async (req, res) => {
 };
 
 export const Logout = (req, res) => {
+  
   req.session.destroy((err) => {
     if (err) {
-      // Hanya kirim 400 jika benar-benar ada error teknis saat menghapus session
       return res.status(400).json({ msg: "Tidak dapat logout" });
     }
     
-    // Jika tidak ada error, berarti session berhasil dihancurkan
-    // Hapus cookie session di sisi client agar bersih total
-    res.clearCookie("connect.sid"); // "connect.sid" adalah nama default cookie express-session
-    res.status(200).json({ msg: "Anda telah logout" });
+    res.clearCookie("connect.sid");
+    res.status(200).json({ 
+      msg: "Anda telah logout. Jika menggunakan Token, harap hapus token di sisi client." 
+    });
   });
 };
