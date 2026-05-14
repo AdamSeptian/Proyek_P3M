@@ -4,26 +4,27 @@ import path from "path";
 import { Op } from "sequelize";
 import fs from "fs";
 import { fileURLToPath } from 'url';
+import jwt from "jsonwebtoken"; // Tambahkan import JWT
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getProfilOrganisasis = async (req, res) => {
-      try {
+    try {
         let whereCondition = {};
         
-            if (req.role === "admin" || req.role === "ketua_forum" || req.role === "humas") {
+        if (req.role === "admin" || req.role === "ketua_forum" || req.role === "humas") {
             whereCondition = {};
-            } else {
+        } else {
             whereCondition = { status: "verified" };
-            }
+        }
 
         const response = await ProfilOrganisasi.findAll({
-        where: whereCondition,
-        attributes: ["uuid", "nama_organisasi", "deskripsi_organisasi", "image", "url", "status", "createdAt", "updatedAt"],
-        include: [{
-            model: Users,
-            attributes: ["username"]
-        }]
+            where: whereCondition,
+            attributes: ["uuid", "nama_organisasi", "deskripsi_organisasi", "image", "url", "status", "createdAt", "updatedAt"],
+            include: [{
+                model: Users,
+                attributes: ["username"]
+            }]
         });
 
         res.status(200).json(response);
@@ -48,14 +49,30 @@ export const getProfilOrganisasiImage = async (req, res) => {
         if (!profil) {
             return res.status(404).json({ msg: "Data profil tidak ditemukan" });
         }
+
+        // Pengecekan Akses Gambar
         if (profil.status !== "verified") {
-            const isAdmin = req.role === "admin";
-            const isOwner = req.userUuid === profil.users_uuid;
-            const isHumas = req.role === "humas";
+            let userRole = req.role;
+            let userId = req.userUuid;
+
+            // Jika diakses via tag <img>, ambil token dari query URL
+            if (!userRole && req.query.token) {
+                try {
+                    const decoded = jwt.verify(req.query.token, process.env.ACCESS_TOKEN_SECRET);
+                    userRole = decoded.role;
+                    userId = decoded.uuid;
+                } catch (error) {
+                    // Abaikan jika token invalid, akses akan ditolak di bawah
+                }
+            }
+
+            const isAdmin = userRole === "admin";
+            const isHumas = userRole === "humas";
+            const isOwner = userId === profil.users_uuid;
 
             if (!isAdmin && !isOwner && !isHumas) {
                 return res.status(403).json({ 
-                    msg: "Akses ditolak." 
+                    msg: "Akses ditolak. Profil belum diverifikasi." 
                 });
             }
         }
@@ -120,8 +137,9 @@ export const createProfilOrganisasi = async (req, res) => {
     res.status(500).json({ msg: error.message });
   }
 };
+
 export const updateProfilOrganisasi = async (req, res) => {
-        try {
+    try {
         const profilOrganisasi = await ProfilOrganisasi.findOne({
             where: {
                 uuid: req.params.uuid,

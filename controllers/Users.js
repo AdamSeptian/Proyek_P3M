@@ -5,12 +5,12 @@ import { Op } from "sequelize";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from 'url';
+import jwt from "jsonwebtoken"; // Pastikan import ini ada
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getUsers = async (req, res) => {
   try {
-
     let whereCondition = {};
 
     if (req.userUuid) {
@@ -22,7 +22,7 @@ export const getUsers = async (req, res) => {
             { role: "anggota" }
           ]
         };
-      }else {
+      } else {
         whereCondition = {
           [Op.or]: [
             { status: "verified" },
@@ -42,7 +42,6 @@ export const getUsers = async (req, res) => {
     });
 
     res.status(200).json(users);
-
   } catch (error) {
     res.status(500).json({ msg: error.message });
   }
@@ -67,10 +66,27 @@ export const getUserImage = async (req, res) => {
         if (!anggota) {
             return res.status(404).json({ msg: "Data anggota tidak ditemukan di database" });
         }
+
+        // Pengecekan Akses Foto Profil
         if (anggota.user?.status !== "verified") {
-            const isAdmin = req.role === "admin";
-            const isKetuaForum = req.role === "ketua_forum";
-            const isOwner = req.userUuid === anggota.users_uuid;
+            let userRole = req.role;
+            let userId = req.userUuid;
+
+            // Jika diakses via tag <img>, ambil token dari query URL
+            if (!userRole && req.query.token) {
+                try {
+                    const decoded = jwt.verify(req.query.token, process.env.ACCESS_TOKEN_SECRET);
+                    userRole = decoded.role;
+                    userId = decoded.uuid;
+                } catch (error) {
+                    // Abaikan jika token invalid, akses akan ditolak di bawah
+                }
+            }
+
+            const isAdmin = userRole === "admin";
+            const isKetuaForum = userRole === "ketua_forum";
+            const isOwner = userId === anggota.users_uuid;
+            
             if (!isAdmin && !isOwner && !isKetuaForum) {
                 return res.status(403).json({ 
                     msg: "Akses ditolak. Profil ini masih dalam peninjauan." 
@@ -78,7 +94,7 @@ export const getUserImage = async (req, res) => {
             }
         }
 
-        // 4. Kirim file jika lolos pengecekan
+        // Kirim file jika lolos pengecekan
         res.sendFile(filePath);
     } catch (error) {
         res.status(500).json({ msg: error.message });
@@ -123,96 +139,105 @@ export const getUserById = async (req, res) => {
 
 
 export const register = async (req, res) => {
-  const {
-    username,
-    email,
-    password,
-    confPassword,
-    role,
-    nama_lengkap,
-    gelar,
-    jabatan,
-    masa_jabat,
-    instansi,
-    linkedin,
-    google_scholar,
-    scopus,
-    sinta,
-  } = req.body || {};
+  // Gunakan .trim() untuk membersihkan spasi tak sengaja dari frontend jika datanya ada
+  const username = req.body.username?.trim();
+  const email = req.body.email?.trim();
+  const password = req.body.password;
+  const confPassword = req.body.confPassword;
+  const role = req.body.role;
+  const nama_lengkap = req.body.nama_lengkap?.trim();
+  const gelar = req.body.gelar?.trim();
+  const jabatan = req.body.jabatan?.trim();
+  const masa_jabat = req.body.masa_jabat?.trim();
+  const instansi = req.body.instansi?.trim();
+  const linkedin = req.body.linkedin?.trim();
+  const google_scholar = req.body.google_scholar?.trim();
+  const scopus = req.body.scopus?.trim();
+  const sinta = req.body.sinta?.trim();
 
   try {
+    // 1. Ekstrak Token secara manual (karena endpoint /register bersifat publik)
+    let currentUserRole = req.role;
+    let currentUserId = req.userUuid;
 
-    if (req.session.userUuid && req.session.role !== "admin") {
+    const authHeader = req.headers['authorization'];
+    if (!currentUserRole && authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        currentUserRole = decoded.role;
+        currentUserId = decoded.uuid;
+      } catch (error) {
+        // Token invalid, biarkan kosong (dianggap Guest)
+      }
+    }
+
+    // Pengecekan Login
+    if (currentUserId && currentUserRole !== "admin") {
       return res.status(400).json({
         msg: "Anda masih login. Silakan logout terlebih dahulu sebelum registrasi akun baru.",
       });
     }
 
-    if (!username || username === "")
-      return res.status(422).json({ msg: "Username wajib diisi" });
+    // Validasi Input Dasar
+    if (!username) return res.status(422).json({ msg: "Username wajib diisi" });
+    if (!email) return res.status(422).json({ msg: "Email wajib diisi" });
+    if (!password) return res.status(422).json({ msg: "Password wajib diisi" });
+    if (password.length < 6) return res.status(422).json({ msg: "Password minimal 6 karakter" });
+    if (password !== confPassword) return res.status(400).json({ msg: "Password dan konfirmasi password tidak cocok!" });
 
-    if (!email || email === "")
-      return res.status(422).json({ msg: "Email wajib diisi" });
-
-    if (!password)
-      return res.status(422).json({ msg: "Password wajib diisi" });
-
-    if (password.length < 6)
-      return res.status(422).json({ msg: "Password minimal 6 karakter" });
-
-    const existingEmail = await Users.findOne({
-      where: { email: email },
+    // ==========================================
+    // PERBAIKAN: Cek Email DAN Username sekaligus
+    // ==========================================
+    const existingUser = await Users.findOne({
+      where: {
+        [Op.or]: [
+          { email: email },
+          { username: username }
+        ]
+      },
+      paranoid: false // Tambahkan ini jika kamu pakai fitur soft-delete di Sequelize
     });
 
-    if (existingEmail) {
-      return res.status(400).json({
-        msg: "Email sudah terdaftar. Gunakan email lain.",
-      });
+    if (existingUser) {
+      if (existingUser.email === email) {
+        return res.status(400).json({ msg: "Email sudah terdaftar. Gunakan email lain." });
+      }
     }
-    if (password !== confPassword)
-    return res
-      .status(400)
-      .json({ msg: "Password dan confirm password tidak cocok!" });
-    const isAdmin = req.session.userUuid && req.session.role === "admin";
+    // ==========================================
 
+    // Tentukan apakah yang mengeksekusi ini adalah Admin
+    const isAdmin = currentUserId && currentUserRole === "admin";
+
+    // Jika BUKAN admin (registrasi mandiri via halaman depan), maka wajib unggah foto dan isi data diri
     if (!isAdmin) {
-
       if (!req.files || !req.files.file)
         return res.status(400).json({ msg: "Mohon unggah foto profil" });
 
-      if (!nama_lengkap || nama_lengkap === "")
-        return res.status(422).json({ msg: "Nama lengkap wajib diisi" });
-
-      if (!gelar || gelar === "")
-        return res.status(422).json({ msg: "Gelar wajib diisi" });
-
-      if (!jabatan || jabatan === "")
-        return res.status(422).json({ msg: "Jabatan wajib diisi" });
-
-      if (!masa_jabat || masa_jabat === "")
-        return res.status(422).json({ msg: "Masa jabatan wajib diisi" });
-
-      if (!instansi || instansi === "")
-        return res.status(422).json({ msg: "Instansi wajib diisi" });
-
+      if (!nama_lengkap) return res.status(422).json({ msg: "Nama lengkap wajib diisi" });
+      if (!gelar) return res.status(422).json({ msg: "Gelar wajib diisi" });
+      if (!jabatan) return res.status(422).json({ msg: "Jabatan wajib diisi" });
+      if (!masa_jabat) return res.status(422).json({ msg: "Masa jabatan wajib diisi" });
+      if (!instansi) return res.status(422).json({ msg: "Instansi wajib diisi" });
     }
 
     const hashPassword = await argon2.hash(password);
 
+    // Create User
     const newUser = await Users.create({
       username,
       email,
       password: hashPassword,
       role: isAdmin ? role : "anggota",
-      status: isAdmin ? "verified" : "pending",
+      status: isAdmin ? "verified" : "pending", 
     });
 
+    // Create Profil Anggota jika bukan admin
     if (!isAdmin) {
-
       const file = req.files.file;
       const ext = path.extname(file.name).toLowerCase();
-
       const allowedType = [".png", ".jpg", ".jpeg"];
+      
       if (!allowedType.includes(ext))
         return res.status(422).json({ msg: "Format harus JPG, PNG, JPEG" });
 
@@ -220,8 +245,8 @@ export const register = async (req, res) => {
         return res.status(422).json({ msg: "Ukuran foto maksimal 5 MB" });
 
       const fileName = file.md5 + "-" + Date.now() + ext;
-
       const uploadDir = "./storage/anggota";
+      
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
@@ -254,6 +279,13 @@ export const register = async (req, res) => {
     });
 
   } catch (error) {
+    console.error("Error Register:", error); // Tambahkan log ini agar terlihat di terminal backend jika error database
+    
+    // Tangkap error validasi database dari Sequelize (misal jika ada constraint unik yang terlewat)
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ msg: "Data (Username/Email) sudah terdaftar di sistem." });
+    }
+    
     res.status(500).json({ msg: error.message });
   }
 };
@@ -289,8 +321,10 @@ export const updateUsers = async (req, res) => {
       if (!instansi) return res.status(400).json({ msg: "Instansi wajib diisi untuk Anggota" });
     }
 
-    let hashPassword = user.password;
-    if (password && password !== "") {
+    let hashPassword = user.password; // Default: gunakan hash lama
+
+    // PENGAMANAN EKSTRA: Pastikan password ada dan bukan sekadar spasi
+    if (password && password.trim() !== "") {
       hashPassword = await argon2.hash(password);
     }
 
@@ -324,7 +358,7 @@ export const updateUsers = async (req, res) => {
     const updateDataUser = {
       username: username || user.username,
       email: email || user.email,
-      password: hashPassword,
+      password: hashPassword, // Menyimpan hash lama ATAU hash baru
     };
 
     if (req.role === "admin") {
@@ -368,7 +402,6 @@ export const updateUsers = async (req, res) => {
 
 export const deleteUsers = async (req, res) => {
   try {
-
     const user = await Users.findOne({
       where: {
         uuid: req.params.uuid,
@@ -395,7 +428,6 @@ export const deleteUsers = async (req, res) => {
 
 export const rejectUserByAdmin = async (req, res) => {
   try {
-
     if (req.role !== "admin" && req.role !== "ketua_forum") {
       return res.status(403).json({ msg: "Akses terlarang!" });
     }
@@ -418,7 +450,6 @@ export const rejectUserByAdmin = async (req, res) => {
 
 export const verifyUserByAdmin = async (req, res) => {
   try {
-
     if (req.role !== "admin" && req.role !== "ketua_forum") {
       return res.status(403).json({ msg: "Akses terlarang!" });
     }
