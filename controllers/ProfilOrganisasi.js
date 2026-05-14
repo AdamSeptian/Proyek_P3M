@@ -150,6 +150,13 @@ export const updateProfilOrganisasi = async (req, res) => {
             return res.status(404).json({ msg: "Profil organisasi tidak ditemukan" });
         }
 
+        if (profilOrganisasi.status === "verified" || profilOrganisasi.status === "rejected")
+        {
+            return res.status(400).json({
+                msg: "Profil organisasi yang sudah tidak pending tidak dapat diubah"
+            });
+        }
+
         let fileName = profilOrganisasi.image;
 
         if (req.files && req.files.file) {

@@ -200,8 +200,8 @@ export const updateAgenda = async (req, res) => {
       return res.status(404).json({ msg: "Agenda tidak ditemukan" });
     }
 
-    if (agenda.status === "verified") {
-      return res.status(400).json({ msg: "Agenda yang sudah diverifikasi tidak dapat diubah" });
+    if (agenda.status === "verified" || agenda.status === "rejected") {
+      return res.status(400).json({ msg: "Agenda yang sudah tidak pending tidak dapat diubah" });
     }
 
     let newStatus = agenda.status;

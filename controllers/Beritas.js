@@ -256,9 +256,9 @@ export const updateBerita = async (req, res) => {
             return res.status(403).json({ msg: "Akses terlarang" });
         }
 
-        if (berita.status === "verified") {
+        if (berita.status === "verified" || berita.status === "rejected") {
             return res.status(400).json({
-                msg: "Berita yang sudah diverifikasi tidak dapat diubah"
+                msg: "Berita yang sudah tidak pending tidak dapat diubah"
             });
         }
 
