@@ -6,24 +6,24 @@ import path from "path";
 import fs from "fs";
 import { Op } from "sequelize";
 import { fileURLToPath } from 'url';
+import jwt from "jsonwebtoken"; // Tambahkan import JWT
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getBeritas = async (req, res) => {
   try {
-    let whereCondition = {};
+    let whereCondition = { status: "verified" }; // Default untuk Guest
 
     if (req.role === "admin") {
-      whereCondition = {};
-    } else if (req.role === "humas") {
+      whereCondition = {}; // Admin bisa lihat semua
+    } else if (req.userUuid) {
+      // Pengguna yang login bisa melihat berita yang verified ATAU milik mereka sendiri
       whereCondition = {
         [Op.or]: [
           { status: "verified" },
           { users_uuid: req.userUuid }
         ]
       };
-    } else {
-      whereCondition = { status: "verified" };
     }
 
     const response = await Beritas.findAll({
@@ -31,8 +31,8 @@ export const getBeritas = async (req, res) => {
       attributes: ["uuid", "judul_berita", "isi_berita", "status", "image", "url", "createdAt", "updatedAt"],
       include: [
         {
-        model: Users,
-        attributes: ["uuid", "username"]
+          model: Users,
+          attributes: ["uuid", "username"]
         },
         {
           model: Kategori,
@@ -70,13 +70,29 @@ export const getBeritaImage = async (req, res) => {
         if (!berita) {
             return res.status(404).json({ msg: "Data berita tidak ditemukan" });
         }
+
+        // Pengecekan Akses File Gambar
         if (berita.status !== "verified") {
-            const isAdmin = req.role === "admin";
-            const isOwner = req.userUuid === berita.users_uuid;
+            let userRole = req.role;
+            let userId = req.userUuid;
+
+            // Jika diakses via tag <img>, ambil token dari query URL
+            if (!userRole && req.query.token) {
+                try {
+                    const decoded = jwt.verify(req.query.token, process.env.ACCESS_TOKEN_SECRET);
+                    userRole = decoded.role;
+                    userId = decoded.uuid;
+                } catch (error) {
+                    // Token invalid abaikan, akses ditolak di bawah
+                }
+            }
+
+            const isAdmin = userRole === "admin";
+            const isOwner = userId === berita.users_uuid;
 
             if (!isAdmin && !isOwner) {
                 return res.status(403).json({ 
-                    msg: "Akses ditolak." 
+                    msg: "Akses ditolak. Gambar dari berita yang belum diverifikasi." 
                 });
             }
         }
@@ -91,16 +107,18 @@ export const getBeritaById = async (req, res) => {
   try {
     const { uuid } = req.params;
     
-    let whereCondition = { uuid: uuid };
+    let whereCondition = { uuid: uuid, status: "verified" };
     
     if (req.role === "admin") {
-    } else if (req.role === "humas") {
-      whereCondition[Op.or] = [
-        { status: "verified" },
-        { users_uuid: req.userUuid }
-      ];
-    } else {
-      whereCondition.status = "verified";
+      whereCondition = { uuid: uuid };
+    } else if (req.userUuid) {
+      whereCondition = {
+        uuid: uuid,
+        [Op.or]: [
+          { status: "verified" },
+          { users_uuid: req.userUuid }
+        ]
+      };
     }
 
     const response = await Beritas.findOne({
@@ -141,33 +159,24 @@ export const createBerita = async (req, res) => {
     return res.status(400).json({ msg: "Tidak ada gambar yang diunggah!" });
   
   if (!judul_berita || judul_berita === "") {
-    return res.status(400).json({
-      msg: "Judul berita wajib diisi",
-    });
+    return res.status(400).json({ msg: "Judul berita wajib diisi" });
   }
 
   if (!isi_berita || isi_berita === "") {
-    return res.status(400).json({
-      msg: "Isi berita wajib diisi",
-    });
+    return res.status(400).json({ msg: "Isi berita wajib diisi" });
   }
 
   const file = req.files.file;
-
   const fileSize = file.data.length;
   const ext = path.extname(file.name).toLowerCase();
   const allowedType = [".png", ".jpg", ".jpeg"];
 
   if (!allowedType.includes(ext)) {
-    return res.status(422).json({
-      msg: "Format gambar tidak valid! Gunakan JPG, JPEG, atau PNG",
-    });
+    return res.status(422).json({ msg: "Format gambar tidak valid! Gunakan JPG, JPEG, atau PNG" });
   }
 
   if (fileSize > 5000000) {
-    return res.status(422).json({
-      msg: "Ukuran gambar maksimal 5 MB",
-    });
+    return res.status(422).json({ msg: "Ukuran gambar maksimal 5 MB" });
   }
 
   const fileName = file.md5 + "-" + Date.now() + ext;
@@ -195,28 +204,28 @@ export const createBerita = async (req, res) => {
         if (cleanKategori.length > 0 || typeof cleanKategori === 'string') {
             await newBerita.addKategori(cleanKategori);
         }
-    }
+      }
 
-    if (tag_uuid && tag_uuid.length > 0) {
-        const cleanTag = Array.isArray(tag_uuid) 
-            ? tag_uuid.filter(id => id !== "" && id !== null)
-            : tag_uuid;
+      if (tag_uuid && tag_uuid.length > 0) {
+          const cleanTag = Array.isArray(tag_uuid) 
+              ? tag_uuid.filter(id => id !== "" && id !== null)
+              : tag_uuid;
 
-        if (cleanTag !== "" && cleanTag !== null) {
-            try {
-                await newBerita.addTag(cleanTag);
-            } catch (fkError) {
-                return res.status(400).json({ 
-                    msg: "Gagal menambahkan Tag. Pastikan UUID Tag yang Anda pilih benar/tersedia." 
-                });
-            }
-        }
-    }
+          if (cleanTag !== "" && cleanTag !== null) {
+              try {
+                  await newBerita.addTag(cleanTag);
+              } catch (fkError) {
+                  return res.status(400).json({ 
+                      msg: "Gagal menambahkan Tag. Pastikan UUID Tag yang Anda pilih benar/tersedia." 
+                  });
+              }
+          }
+      }
 
-    res.status(201).json({
-        msg: "Berita berhasil dibuat",
-        data: newBerita
-    });
+      res.status(201).json({
+          msg: "Berita berhasil dibuat",
+          data: newBerita
+      });
     } catch (error) {
       if (error.name === "SequelizeValidationError") {
         return res.status(400).json({
@@ -227,10 +236,8 @@ export const createBerita = async (req, res) => {
         return res.status(400).json({
             msg: "Gagal menyimpan relasi. Kategori atau Tag yang Anda masukkan tidak terdaftar di database."
         });
-    }
-      res.status(500).json({
-        msg: error.message,
-      });
+      }
+      res.status(500).json({ msg: error.message });
     }
   });
 };
@@ -238,9 +245,7 @@ export const createBerita = async (req, res) => {
 export const updateBerita = async (req, res) => {
     try {
         const berita = await Beritas.findOne({
-            where: {
-                uuid: req.params.uuid,
-            },
+            where: { uuid: req.params.uuid },
         });
 
         if (!berita) {
@@ -292,10 +297,9 @@ export const updateBerita = async (req, res) => {
             image: fileName,
             url: url
         }, {
-            where: {
-                uuid: berita.uuid,
-            },
+            where: { uuid: berita.uuid },
         });
+
         if (kategori_uuid) {
             const katArray = Array.isArray(kategori_uuid) ? kategori_uuid : [kategori_uuid];
             const cleanKat = katArray.filter(id => id !== "");
@@ -316,13 +320,10 @@ export const updateBerita = async (req, res) => {
     }
 };
 
-
 export const deleteBerita = async (req, res) => {
     try {
         const berita = await Beritas.findOne({
-            where: {
-                uuid: req.params.uuid,
-            },
+            where: { uuid: req.params.uuid },
         });
 
         if (!berita) {
@@ -335,9 +336,7 @@ export const deleteBerita = async (req, res) => {
         }
 
         await Beritas.destroy({
-            where: {
-                uuid: req.params.uuid,
-            },
+            where: { uuid: req.params.uuid },
         });
 
         res.status(200).json({ msg: "Berita berhasil dihapus" });
@@ -350,19 +349,13 @@ export const deleteBerita = async (req, res) => {
 export const verifyBeritaByAdmin = async (req, res) => {
     try {
         const berita = await Beritas.findOne({
-            where: {
-                uuid: req.params.uuid,
-            },
+            where: { uuid: req.params.uuid },
         });
         if (!berita) return res.status(404).json({ msg: "Berita tidak ditemukan" });
 
         await Beritas.update(
             { status: "verified" },
-            {
-                where: {
-                    uuid: req.params.uuid,
-                },
-            }
+            { where: { uuid: req.params.uuid } }
         );
 
         res.status(200).json({ msg: "Berita berhasil diverifikasi oleh admin" });
@@ -374,19 +367,13 @@ export const verifyBeritaByAdmin = async (req, res) => {
 export const rejectBeritaByAdmin = async (req, res) => {
     try {
         const berita = await Beritas.findOne({
-            where: {
-                uuid: req.params.uuid,
-            },
+            where: { uuid: req.params.uuid },
         });
         if (!berita) return res.status(404).json({ msg: "Berita tidak ditemukan" });
 
         await Beritas.update(
             { status: "rejected" },
-            {
-                where: {
-                    uuid: req.params.uuid,
-                },
-            }
+            { where: { uuid: req.params.uuid } }
         );
 
         res.status(200).json({ msg: "Berita berhasil ditolak oleh admin" });

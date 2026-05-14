@@ -4,95 +4,114 @@ import path from "path";
 import fs from "fs";
 import { Op } from "sequelize";
 import { fileURLToPath } from 'url';
+import jwt from "jsonwebtoken"; // Tambahkan import JWT
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const getLaporans = async (req, res) => {
-      try {
-         let whereCondition = {};
-     
-         if (req.role === "admin") {
-           whereCondition = {};
-         } else if (req.role === "ketua_forum") {
-           whereCondition = {
-             [Op.or]: [
-               { status: "verified" },
-               { users_uuid: req.userUuid }
-             ]
-           };
-         } else {
-           whereCondition = { status: "verified" };
-         }
-     
-         const response = await Laporans.findAll({
-           where: whereCondition,
-           attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt", "updatedAt"],
-           include: [{
-             model: Users,
-             attributes: ["uuid", "username"]
-           }],
-           order: [['updatedAt', 'DESC']]
-         });
-     
-         res.status(200).json(response);
-       } catch (error) {
-         res.status(500).json({ msg: error.message });
-       }
+  try {
+    let whereCondition = { status: "verified" }; // Default untuk Guest
+
+    if (req.role === "admin") {
+      whereCondition = {}; // Admin bisa lihat semua
+    } else if (req.userUuid) {
+      // Pengguna yang login bisa melihat laporan yang verified ATAU milik mereka sendiri
+      whereCondition = {
+        [Op.or]: [
+          { status: "verified" },
+          { users_uuid: req.userUuid }
+        ]
+      };
+    }
+
+    const response = await Laporans.findAll({
+      where: whereCondition,
+      attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt", "updatedAt"],
+      include: [{
+        model: Users,
+        attributes: ["uuid", "username"]
+      }],
+      order: [['updatedAt', 'DESC']]
+    });
+
+    res.status(200).json(response);
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
 }
 
 export const getLaporanFile = async (req, res) => {
-    try {
-        const { filename } = req.params;
-        const filePath = path.join(__dirname, "../storage/laporan", filename);
+  try {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, "../storage/laporan", filename);
 
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ msg: "File tidak ditemukan" });
-        }
-
-        const laporan = await Laporans.findOne({
-            where: { file_laporan: filename }
-        });
-
-        if (!laporan) {
-            return res.status(404).json({ msg: "Data laporan tidak ditemukan" });
-        }
-        if (laporan.status !== "verified") {
-            const isAdmin = req.role === "admin";
-            const isOwner = req.userUuid === laporan.users_uuid;
-
-            if (!isAdmin && !isOwner) {
-                return res.status(403).json({ 
-                    msg: "Akses ditolak." 
-                });
-            }
-        }
-
-        res.sendFile(filePath);
-    } catch (error) {
-        res.status(500).json({ msg: error.message });
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ msg: "File tidak ditemukan" });
     }
+
+    const laporan = await Laporans.findOne({
+      where: { file_laporan: filename }
+    });
+
+    if (!laporan) {
+      return res.status(404).json({ msg: "Data laporan tidak ditemukan" });
+    }
+
+    // Pengecekan Akses File
+    if (laporan.status !== "verified") {
+      let userRole = req.role;
+      let userId = req.userUuid;
+
+      // Jika diakses via URL langsung (window.open), ambil token dari query string
+      if (!userRole && req.query.token) {
+        try {
+          const decoded = jwt.verify(req.query.token, process.env.ACCESS_TOKEN_SECRET);
+          userRole = decoded.role;
+          userId = decoded.uuid;
+        } catch (error) {
+          // Abaikan jika token invalid, akses akan ditolak di bawah
+        }
+      }
+
+      const isAdmin = userRole === "admin";
+      const isOwner = userId === laporan.users_uuid;
+
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ 
+          msg: "Akses ditolak. Laporan belum diverifikasi." 
+        });
+      }
+    }
+
+    res.sendFile(filePath);
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
 };
 
 export const getLaporanByUuid = async (req, res) => {
-      try {
-        const { uuid } = req.params;
-        let whereCondition = { uuid: uuid };
-        if (req.role === "admin") {
-        } else if (req.role === "ketua_forum") {
-          whereCondition[Op.or] = [
-            { status: "verified" },
-            { users_uuid: req.userUuid }
-          ];
-        } else {
-          whereCondition.status = "verified";
-        }
+  try {
+    const { uuid } = req.params;
+    let whereCondition = { uuid: uuid, status: "verified" };
+    
+    if (req.role === "admin") {
+      whereCondition = { uuid: uuid };
+    } else if (req.userUuid) {
+      whereCondition = {
+        uuid: uuid,
+        [Op.or]: [
+          { status: "verified" },
+          { users_uuid: req.userUuid }
+        ]
+      };
+    }
 
     const response = await Laporans.findOne({
       where: whereCondition,
       attributes: ["uuid", "keterangan", "status", "file_laporan", "url", "createdAt", "updatedAt"],
       include: [{
-      model: Users,
-      attributes: ["username"]
+        model: Users,
+        attributes: ["username"]
       }]
     });
 
@@ -107,19 +126,18 @@ export const getLaporanByUuid = async (req, res) => {
 }
 
 export const createLaporan = async (req, res) => {
-    const {keterangan} = req.body || {};
+  const {keterangan} = req.body || {};
 
-    if (req.files === null)
-        return res.status(400).json({ msg: "Tidak ada file yang diunggah!" });
+  if (req.files === null)
+    return res.status(400).json({ msg: "Tidak ada file yang diunggah!" });
 
-    if (!keterangan || keterangan === "") {
+  if (!keterangan || keterangan === "") {
     return res.status(400).json({
       msg: "Keterangan wajib diisi",
     });
   }
 
   const file = req.files.file;
-
   const fileSize = file.data.length;
   const ext = path.extname(file.name).toLowerCase();
   const allowedType = ".pdf";
@@ -162,7 +180,6 @@ export const createLaporan = async (req, res) => {
           msg: "Data tidak valid, pastikan semua field terisi dengan benar",
         });
       }
-
       res.status(500).json({
         msg: error.message,
       });
@@ -171,142 +188,142 @@ export const createLaporan = async (req, res) => {
 }
 
 export const updateLaporan = async (req, res) => {
-      try {
-        const laporan = await Laporans.findOne({
-            where: {
-                uuid: req.params.uuid,
-            },
-        });
+  try {
+    const laporan = await Laporans.findOne({
+      where: {
+        uuid: req.params.uuid,
+      },
+    });
 
-        if (!laporan) {
-            return res.status(404).json({ msg: "Laporan tidak ditemukan" });
-        }
+    if (!laporan) {
+      return res.status(404).json({ msg: "Laporan tidak ditemukan" });
+    }
 
-        if (laporan.status === "verified") {
-            return res.status(400).json({
-                msg: "Laporan yang sudah diverifikasi tidak dapat diubah"
-            });
-        }
+    if (laporan.status === "verified") {
+      return res.status(400).json({
+        msg: "Laporan yang sudah diverifikasi tidak dapat diubah"
+      });
+    }
 
-        let fileName = laporan.file;
+    let fileName = laporan.file_laporan;
 
-        if (req.files && req.files.file) {
-          const file = req.files.file;
-          const fileSize = file.data.length;
-          const ext = path.extname(file.name).toLowerCase();
-          const allowedType = ".pdf";
+    if (req.files && req.files.file) {
+      const file = req.files.file;
+      const fileSize = file.data.length;
+      const ext = path.extname(file.name).toLowerCase();
+      const allowedType = ".pdf";
 
-          if (!allowedType.includes(ext)) {
-              return res.status(422).json({ msg: "Format harus PDF" });
-          }
-          if (fileSize > 5000000) {
-              return res.status(422).json({ msg: "File harus kurang dari 5 MB" });
-          }
-          fileName = file.md5 + "_" + Date.now() + ext;
-          
-          await file.mv(`./storage/laporan/${fileName}`);
-
-          const oldPath = `./storage/laporan/${laporan.file}`;
-          if (laporan.file !== fileName && fs.existsSync(oldPath)) {
-              fs.unlinkSync(oldPath);
-          }
+      if (!allowedType.includes(ext)) {
+        return res.status(422).json({ msg: "Format harus PDF" });
+      }
+      if (fileSize > 5000000) {
+        return res.status(422).json({ msg: "File harus kurang dari 5 MB" });
+      }
+      
+      const oldPath = `./storage/laporan/${laporan.file_laporan}`;
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
       }
 
-        const url = `${req.protocol}://${req.get("host")}/storage/laporan/${fileName}`;
-
-        await Laporans.update({
-            keterangan: req.body.keterangan,
-            file_laporan: fileName,
-            url: url
-        }, {
-            where: {
-                uuid: req.params.uuid,
-            },
-        });
-
-        res.status(200).json({ msg: "Laporan berhasil diupdate" });
-
-    } catch (error) {
-        res.status(500).json({ msg: error.message });
+      fileName = file.md5 + "_" + Date.now() + ext;
+      await file.mv(`./storage/laporan/${fileName}`);
     }
+
+    const url = `${req.protocol}://${req.get("host")}/storage/laporan/${fileName}`;
+
+    await Laporans.update({
+      keterangan: req.body.keterangan || laporan.keterangan,
+      file_laporan: fileName,
+      url: url
+    }, {
+      where: {
+        uuid: req.params.uuid,
+      },
+    });
+
+    res.status(200).json({ msg: "Laporan berhasil diupdate" });
+
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
 }
 
 export const deleteLaporan = async (req, res) => {
-      try {
-        const laporan = await Laporans.findOne({
-            where: {
-                uuid: req.params.uuid,
-            },
-        });
+  try {
+    const laporan = await Laporans.findOne({
+      where: {
+        uuid: req.params.uuid,
+      },
+    });
 
-        if (!laporan) {
-            return res.status(404).json({ msg: "Laporan tidak ditemukan" });
-        }
-
-        const filepath = `./storage/laporan/${laporan.file_laporan}`;
-        if (fs.existsSync(filepath)) {
-            fs.unlinkSync(filepath);
-        }
-
-        await Laporans.destroy({
-            where: {
-                uuid: req.params.uuid,
-            },
-        });
-
-        res.status(200).json({ msg: "Laporan berhasil dihapus" });
-
-    } catch (error) {
-        res.status(500).json({ msg: error.message });
+    if (!laporan) {
+      return res.status(404).json({ msg: "Laporan tidak ditemukan" });
     }
+
+    const filepath = `./storage/laporan/${laporan.file_laporan}`;
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+    }
+
+    await Laporans.destroy({
+      where: {
+        uuid: req.params.uuid,
+      },
+    });
+
+    res.status(200).json({ msg: "Laporan berhasil dihapus" });
+
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
 }
 
 export const verifyLaporanByAdmin = async (req, res) => {
-      try {
-        const laporan = await Laporans.findOne({
-            where: {
-                uuid: req.params.uuid,
-            },
-        });
-        if (!laporan) return res.status(404).json({ msg: "Laporan tidak ditemukan" });
+  try {
+    const laporan = await Laporans.findOne({
+      where: {
+        uuid: req.params.uuid,
+      },
+    });
+    if (!laporan) return res.status(404).json({ msg: "Laporan tidak ditemukan" });
 
-        await Laporans.update(
-            { status: "verified" },
-            {
-                where: {
-                    uuid: req.params.uuid,
-                },
-            }
-        );
+    await Laporans.update(
+      { status: "verified" },
+      {
+        where: {
+          uuid: req.params.uuid,
+        },
+      }
+    );
 
-        res.status(200).json({ msg: "Laporan berhasil diverifikasi oleh admin" });
-    } catch (error) {
-        res.status(500).json({ msg: error.message });
-    }
+    res.status(200).json({ msg: "Laporan berhasil diverifikasi oleh admin" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
 }
 
 export const rejectLaporanByAdmin = async (req, res) => {
-      try {
-        const laporan = await Laporans.findOne({
-            where: {
-                uuid: req.params.uuid,
-            },
-        });
-        if (!laporan) return res.status(404).json({ msg: "Laporan tidak ditemukan" });
+  try {
+    const laporan = await Laporans.findOne({
+      where: {
+        uuid: req.params.uuid,
+      },
+    });
+    if (!laporan) return res.status(404).json({ msg: "Laporan tidak ditemukan" });
 
-        await Laporans.update(
-            { status: "rejected" },
-            {
-                where: {
-                    uuid: req.params.uuid,
-                },
-            }
-        );
+    await Laporans.update(
+      { status: "rejected" },
+      {
+        where: {
+          uuid: req.params.uuid,
+        },
+      }
+    );
 
-        res.status(200).json({ msg: "Laporan berhasil ditolak oleh admin" });
-    } catch (error) {
-        res.status(500).json({ msg: error.message });
-    }
+    res.status(200).json({ msg: "Laporan berhasil ditolak oleh admin" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
 }
 
 export const cancelVerifyLaporan = async (req, res) => {

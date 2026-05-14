@@ -5,19 +5,7 @@ import jwt from "jsonwebtoken";
 
 export const Login = async (req, res) => {
   try {
-    if (req.session.userUuid) {
-      const sessionUser = await Users.findOne({
-        where: { uuid: req.session.userUuid }
-      });
-      if (!sessionUser) {
-        req.session.destroy();
-      } else {
-        return res.status(400).json({
-          msg: "Anda masih login. Silakan logout terlebih dahulu sebelum login ke akun lain."
-        });
-      }
-    }
-
+    // Cari user berdasarkan email
     const user = await Users.findOne({
       where: {
         email: req.body.email,
@@ -43,19 +31,30 @@ export const Login = async (req, res) => {
       ],
     });
 
-    if (!user)
+    if (!user) {
       return res.status(404).json({ msg: "Pengguna tidak ditemukan!" });
+    }
+
+    // Verifikasi Password
     const match = await argon2.verify(user.password, req.body.password);
-    if (!match)
+    if (!match) {
       return res.status(400).json({ msg: "Password salah!" });
-    req.session.userUuid = user.uuid;
-    req.session.role = user.role;
-    req.session.status = user.status;
+    }
+
+    // Jika masih ada sisa penggunaan express-session, kita simpan juga
+    if (req.session) {
+      req.session.userUuid = user.uuid;
+      req.session.role = user.role;
+      req.session.status = user.status;
+    }
+
+    // Buat JWT Token
     const accessToken = jwt.sign(
       { uuid: user.uuid, role: user.role, status: user.status },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: '1d' }
     );
+
     res.status(200).json({
       msg: "Login berhasil",
       accessToken: accessToken,
@@ -63,7 +62,7 @@ export const Login = async (req, res) => {
       username: user.username,
       email: user.email,
       role: user.role,
-      status: user.status,
+      status: user.status, // Status (pending/verified) akan terbaca di Frontend
       ...(user.anggotas && user.anggotas.length > 0 && {
         anggota: user.anggotas,
       }),
@@ -75,7 +74,8 @@ export const Login = async (req, res) => {
 };
 
 export const Me = async (req, res) => {
-  const userUuid = req.userUuid || req.session.userUuid;
+  // Ambil userUuid yang sudah diekstrak oleh Middleware (JWT) atau fallback ke session
+  const userUuid = req.userUuid || (req.session && req.session.userUuid);
 
   if (!userUuid) {
     return res.status(401).json({ msg: "Silakan login ke akun Anda!" });
@@ -107,15 +107,19 @@ export const Me = async (req, res) => {
 };
 
 export const Logout = (req, res) => {
-  
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(400).json({ msg: "Tidak dapat logout" });
-    }
-    
-    res.clearCookie("connect.sid");
-    res.status(200).json({ 
-      msg: "Anda telah logout. Jika menggunakan Token, harap hapus token di sisi client." 
+  if (req.session) {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(400).json({ msg: "Tidak dapat logout" });
+      }
+      res.clearCookie("connect.sid");
+      res.status(200).json({ 
+        msg: "Anda telah logout. Jika menggunakan Token, harap hapus token di sisi client." 
+      });
     });
-  });
+  } else {
+    res.status(200).json({ 
+      msg: "Anda telah logout. Harap hapus token di sisi client." 
+    });
+  }
 };

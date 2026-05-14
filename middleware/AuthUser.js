@@ -51,10 +51,14 @@ export const verifyUser = async (req, res, next) => {
 };
 
 export const optionalVerifyUser = async (req, res, next) => {
-    const decoded = decodeToken(req);
-    const userUuid = decoded ? decoded.uuid : req.session.userUuid;
+    req.userUuid = null;
+    req.role = null;
+    req.status = null;
 
-    if (!userUuid) return next();
+    const decoded = decodeToken(req);
+    const userUuid = decoded ? decoded.uuid : (req.session ? req.session.userUuid : null);
+
+    if (!userUuid) return next(); 
 
     try {
         const user = await Users.findOne({
@@ -72,8 +76,6 @@ export const optionalVerifyUser = async (req, res, next) => {
         next();
     }
 };
-
-// --- MIDDLEWARE ROLE & STATUS (LOGIKA TETAP SAMA) ---
 
 export const onlyVerified = (req, res, next) => {
     if (req.status !== "verified") {
@@ -115,7 +117,6 @@ export const adminOrSelf = (Model) => async (req, res, next) => {
         const data = await Model.findOne({ where: { uuid: req.params.uuid } });
         if (!data) return res.status(404).json({ msg: "Data tidak ditemukan" });
 
-        // Cek apakah admin atau pemilik data (relasi users_uuid)
         if (req.role === "admin" || req.userUuid === data.users_uuid) {
             req.tempData = data;
             next();
