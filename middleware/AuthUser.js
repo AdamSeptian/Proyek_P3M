@@ -25,7 +25,7 @@ export const verifyUser = async (req, res, next) => {
     const userUuid = decoded ? decoded.uuid : req.session.userUuid;
 
     if (!userUuid) {
-        return res.status(401).json({ msg: "Silakan login terlebih dahulu (Token/Session tidak ditemukan)" });
+        return res.status(401).json({ msg: "Masukkan email dan kata sandi untuk masuk ke akun Anda." });
     }
 
     try {
