@@ -199,9 +199,9 @@ export const updateLaporan = async (req, res) => {
       return res.status(404).json({ msg: "Laporan tidak ditemukan" });
     }
 
-    if (laporan.status === "verified") {
+    if (laporan.status === "verified" || laporan.status === "rejected") {
       return res.status(400).json({
-        msg: "Laporan yang sudah diverifikasi tidak dapat diubah"
+        msg: "Laporan yang sudah tidak pending tidak dapat diubah"
       });
     }
 
